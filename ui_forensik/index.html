@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forensik Deepfake</title>
+<style>
+:root {
+  --bg:#15171b; --panel:#1c1f25; --panel2:#232730; --panel3:#2a2f39; --garis:#343a46; --teks:#d8dde6;
+  --redup:#8c95a4; --aksen:#3d8bfd; --aksen2:#1f5fc4; --merah:#e5484d; --oranye:#f0a020; --hijau:#30a46c;
+  --abu:#6b7280; --mono:Consolas,"Cascadia Mono","Courier New",monospace;
+}
+* { box-sizing:border-box; }
+html,body { height:100%; margin:0; }
+body { background:var(--bg); color:var(--teks); font:13px/1.4 "Segoe UI",system-ui,Arial,sans-serif;
+  display:grid; grid-template-rows:28px 46px 1fr auto 24px; overflow:hidden; user-select:none; }
+button { font:inherit; color:inherit; }
+input,select,textarea { font:inherit; color:var(--teks); background:#12141a; border:1px solid var(--garis);
+  border-radius:3px; padding:5px 7px; width:100%; user-select:text; }
+input:focus,select:focus,textarea:focus { outline:1px solid var(--aksen); border-color:var(--aksen); }
+.mono { font-family:var(--mono); font-size:12px; user-select:text; }
+.redup { color:var(--redup); }
+/* menu */
+#menu { display:flex; align-items:center; background:#101216; border-bottom:1px solid var(--garis); padding:0 6px; gap:2px; }
+#menu .logo { display:flex; align-items:center; gap:6px; font-weight:600; margin-right:10px; color:#fff; }
+#menu .item { position:relative; padding:4px 10px; border-radius:3px; cursor:default; }
+#menu .item:hover, #menu .item.buka { background:var(--panel3); }
+#menu .sub { display:none; position:absolute; top:26px; left:0; min-width:250px; background:var(--panel2);
+  border:1px solid var(--garis); box-shadow:0 8px 24px #0008; z-index:50; padding:4px 0; }
+#menu .item.buka .sub { display:block; }
+#menu .sub div { padding:6px 14px; display:flex; justify-content:space-between; gap:20px; }
+#menu .sub div:hover { background:var(--aksen2); }
+#menu .sub div.mati { color:var(--abu); pointer-events:none; }
+#bahasaUI { margin-left:auto; display:flex; gap:2px; align-items:center; }
+#bahasaUI button { background:transparent; color:var(--redup); border:1px solid var(--garis); padding:1px 8px; font-size:11px; border-radius:3px; cursor:pointer; }
+#bahasaUI button.aktif { background:var(--aksen2); color:#fff; border-color:var(--aksen2); }
+#menu .sub hr { border:0; border-top:1px solid var(--garis); margin:4px 0; }
+/* toolbar */
+#alat { display:flex; align-items:center; gap:2px; padding:0 8px; background:var(--panel); border-bottom:1px solid var(--garis); }
+.tb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; width:84px; white-space:nowrap; height:42px;
+  border:1px solid transparent; background:none; border-radius:3px; cursor:pointer; font-size:11px; color:var(--teks); }
+.tb:hover { background:var(--panel3); border-color:var(--garis); }
+.tb:disabled { opacity:.35; pointer-events:none; }
+.tb svg { width:18px; height:18px; }
+.pemisah { width:1px; height:30px; background:var(--garis); margin:0 6px; }
+/* utama */
+#utama { display:grid; grid-template-columns:270px 1fr; min-height:0; }
+#pohon { background:var(--panel); border-right:1px solid var(--garis); overflow:auto; min-height:0; }
+.judul-panel { padding:6px 10px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--redup);
+  background:var(--panel2); border-bottom:1px solid var(--garis); display:flex; justify-content:space-between; align-items:center; }
+.node { display:flex; align-items:center; gap:6px; padding:3px 8px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.node:hover { background:var(--panel3); }
+.node.aktif { background:var(--aksen2); color:#fff; }
+.node svg { width:15px; height:15px; flex:none; }
+.node .jml { margin-left:auto; color:var(--redup); font-size:11px; }
+.titik { width:8px; height:8px; border-radius:50%; flex:none; }
+#isi { display:grid; grid-template-rows:minmax(150px,38%) 1fr; min-height:0; min-width:0; }
+#atas, #bawah { min-height:0; display:flex; flex-direction:column; min-width:0; }
+#bawah { border-top:1px solid var(--garis); }
+.gulir { overflow:auto; flex:1; min-height:0; }
+table.grid { border-collapse:collapse; width:100%; font-size:12.5px; }
+table.grid th { position:sticky; top:0; background:var(--panel2); color:var(--redup); font-weight:600; text-align:left;
+  padding:5px 8px; border-bottom:1px solid var(--garis); border-right:1px solid var(--garis); white-space:nowrap; z-index:1; }
+table.grid td { padding:4px 8px; border-bottom:1px solid #262a33; white-space:nowrap; max-width:320px; overflow:hidden; text-overflow:ellipsis; }
+table.grid tbody tr:hover { background:#20242c; }
+table.grid tbody tr.pilih { background:#1d3557; }
+table.kv { border-collapse:collapse; width:100%; }
+table.kv th { text-align:left; color:var(--redup); font-weight:500; padding:4px 10px 4px 0; width:220px; vertical-align:top; }
+table.kv.info th { width:76px; } table.kv.info td { word-break:normal; overflow-wrap:anywhere; }
+table.kv td { padding:4px 0; vertical-align:top; user-select:text; word-break:break-all; }
+.lencana { display:inline-block; padding:1px 8px; border-radius:3px; font-size:11px; font-weight:700; color:#fff; letter-spacing:.02em; }
+.TERINDIKASI { background:var(--merah); } .RAGU { background:var(--oranye); } .TIDAK { background:var(--hijau); }
+.TIDAK_ADA_WAJAH, .BELUM { background:var(--abu); }
+/* tab */
+.tabbar { display:flex; background:var(--panel2); border-bottom:1px solid var(--garis); overflow-x:auto; flex:none; }
+.tab { padding:7px 14px; cursor:pointer; color:var(--redup); border-right:1px solid var(--garis); white-space:nowrap; }
+.tab.aktif { background:var(--bg); color:#fff; box-shadow:inset 0 2px 0 var(--aksen); }
+.halaman { padding:14px 16px; }
+.kartu { background:var(--panel); border:1px solid var(--garis); border-radius:4px; padding:12px 14px; margin-bottom:12px; }
+.kartu h3 { margin:0 0 8px; font-size:13px; color:#fff; }
+.vonis { display:flex; gap:18px; align-items:center; }
+.vonis .besar { font-size:20px; font-weight:700; }
+.meter { width:180px; height:10px; border-radius:5px; background:linear-gradient(90deg,var(--hijau),var(--oranye),var(--merah)); position:relative; }
+.meter i { position:absolute; top:-4px; width:3px; height:18px; background:#fff; border-radius:2px; box-shadow:0 0 0 1px #000; }
+.meter b { position:absolute; top:-3px; width:1px; height:16px; background:#000a; }
+.kolom2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.galeri { display:flex; flex-wrap:wrap; gap:6px; }
+.gcstrip { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+.gcf { flex:0 0 auto; width:104px; cursor:pointer; border:2px solid transparent; border-radius:3px; padding:2px; background:#14171c; }
+.gcf img { width:96px; height:96px; object-fit:cover; display:block; }
+.gcf .wk { font-size:11px; font-family:Consolas,monospace; margin-top:2px; }
+.gcf .bt { height:5px; background:#2a2f39; margin:2px 0; } .gcf .bt b { display:block; height:5px; background:#e5484d; }
+.gcf .bb { font-size:10.5px; color:var(--redup); }
+.gcf.aktif { border-color:#fff; background:#252b35; }
+.gcf.bawah .bt b { background:#6b7280; }
+.catatan-bobot { font-size:11.5px; color:var(--redup); border-left:3px solid #6b7280; padding:4px 8px; margin:4px 0 6px; background:#1b1f26; }
+svg.waktu .area-klik { cursor:crosshair; }
+.galeri img { width:112px; height:112px; object-fit:cover; border:1px solid var(--garis); border-radius:2px; }
+.gambar-lebar { max-width:100%; border:1px solid var(--garis); border-radius:3px; background:#fff; }
+.temuan { padding:6px 10px; border-left:3px solid var(--aksen); background:var(--panel2); margin:4px 0; }
+.temuan.tinggi { border-color:var(--merah); }
+pre.mentah { background:#0f1115; border:1px solid var(--garis); padding:8px; font:11.5px var(--mono); white-space:pre-wrap; user-select:text; }
+.kosong { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--redup); gap:10px; text-align:center; }
+.tombol { background:var(--panel3); border:1px solid var(--garis); padding:6px 14px; border-radius:3px; cursor:pointer; }
+.tombol:hover { border-color:var(--aksen); }
+.tombol.utama { background:var(--aksen2); border-color:var(--aksen); color:#fff; }
+.tombol:disabled { opacity:.4; pointer-events:none; }
+/* konsol */
+#konsol { background:#0f1115; border-top:1px solid var(--garis); display:flex; flex-direction:column; height:170px; }
+#konsol.kecil { height:28px; }
+#konsol .kepala { display:flex; align-items:center; gap:10px; padding:4px 10px; background:var(--panel2); font-size:11px; color:var(--redup); cursor:pointer; flex:none; }
+#konsol .bar { flex:0 0 220px; height:6px; background:#000; border-radius:3px; overflow:hidden; }
+#konsol .bar i { display:block; height:100%; width:0; background:var(--aksen); transition:width .3s; }
+#konsolLog { flex:1; overflow:auto; padding:4px 10px; font:11.5px/1.45 var(--mono); color:#b9c2cf; user-select:text; white-space:pre-wrap; }
+#status { display:flex; align-items:center; gap:16px; padding:0 10px; background:var(--aksen2); color:#fff; font-size:11.5px; }
+#status span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#status .kanan { margin-left:auto; }
+/* dialog */
+#tirai { position:fixed; inset:0; background:#0009; display:none; align-items:center; justify-content:center; z-index:100; }
+#tirai.buka { display:flex; }
+.dialog { width:560px; max-width:94vw; max-height:90vh; overflow:auto; background:var(--panel); border:1px solid var(--garis); box-shadow:0 20px 50px #000a; border-radius:5px; }
+.dialog .kepala { padding:10px 14px; background:var(--panel2); border-bottom:1px solid var(--garis); font-weight:600; display:flex; justify-content:space-between; }
+.dialog .badan { padding:14px; display:grid; gap:10px; }
+.dialog .kaki { padding:10px 14px; border-top:1px solid var(--garis); display:flex; justify-content:flex-end; gap:8px; }
+.dialog label { display:grid; gap:4px; color:var(--redup); font-size:12px; }
+.baris2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.daftar-pilih { border:1px solid var(--garis); max-height:240px; overflow:auto; }
+.daftar-pilih div { padding:7px 10px; border-bottom:1px solid #262a33; cursor:pointer; }
+.daftar-pilih div:hover { background:var(--panel3); }
+.daftar-pilih div.pilih { background:var(--aksen2); }
+#notif { position:fixed; right:16px; bottom:210px; display:grid; gap:8px; z-index:200; }
+.notif { background:var(--panel3); border:1px solid var(--garis); border-left:4px solid var(--aksen); padding:8px 12px; min-width:260px; max-width:420px; box-shadow:0 6px 18px #0008; }
+.notif.galat { border-left-color:var(--merah); }
+svg.waktu { width:100%; height:240px; background:var(--panel); border:1px solid var(--garis); border-radius:3px; }
+svg.waktu .titik-seg { cursor:pointer; }
+::-webkit-scrollbar { width:10px; height:10px; } ::-webkit-scrollbar-thumb { background:#3a404c; border-radius:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+</style>
+</head>
+<body>
+<div id="menu">
+  <div class="logo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3d8bfd" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6M11 8v6"/></svg>Forensik Deepfake</div>
+  <div class="item" data-menu>Berkas<div class="sub">
+    <div data-aksi="kasusBaru">Kasus baru...<span class="redup">Ctrl+N</span></div>
+    <div data-aksi="bukaKasus">Buka kasus...<span class="redup">Ctrl+O</span></div>
+    <hr><div data-aksi="tutupKasus" data-perlu="kasus">Tutup kasus</div></div></div>
+  <div class="item" data-menu>Barang bukti<div class="sub">
+    <div data-aksi="tambahBukti" data-perlu="kasus">Tambah barang bukti...<span class="redup">Ctrl+I</span></div>
+    <div data-aksi="integritas" data-perlu="bukti">Verifikasi hash bukti terpilih</div></div></div>
+  <div class="item" data-menu>Analisis<div class="sub">
+    <div data-aksi="analisis" data-perlu="kasus">Jalankan analisis deepfake...<span class="redup">F5</span></div>
+    <div data-aksi="verifikasi" data-perlu="kasus">Verifikasi rantai bukti kasus</div></div></div>
+  <div class="item" data-menu>Laporan<div class="sub">
+    <div data-aksi="laporan" data-perlu="kasus">Buat laporan (PDF + HTML)...<span class="redup">Ctrl+R</span></div>
+    <div data-aksi="lihatLaporan" data-perlu="kasus">Daftar laporan</div></div></div>
+  <div class="item" data-menu>Bantuan<div class="sub"><div data-aksi="tentang">Tentang aplikasi</div></div></div>
+  <div id="bahasaUI" title="Bahasa / Language"><button data-bhs="id">ID</button><button data-bhs="en">EN</button></div>
+</div>
+
+<div id="alat">
+  <button class="tb" data-aksi="kasusBaru" title="Kasus baru (Ctrl+N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6M12 13v5M9.5 15.5h5"/></svg>Kasus baru</button>
+  <button class="tb" data-aksi="bukaKasus" title="Buka kasus (Ctrl+O)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h7l2 2h9v11H3z"/></svg>Buka kasus</button>
+  <div class="pemisah"></div>
+  <button class="tb" data-aksi="tambahBukti" data-perlu="kasus" title="Tambah barang bukti (Ctrl+I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="14" height="14" rx="1"/><path d="M17 10l4-2v8l-4-2M10 9v6M7 12h6"/></svg>Tambah bukti</button>
+  <button class="tb" data-aksi="integritas" data-perlu="bukti" title="Verifikasi hash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Hash</button>
+  <div class="pemisah"></div>
+  <button class="tb" data-aksi="analisis" data-perlu="kasus" title="Analisis deepfake (F5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="M20 20l-5.6-5.6M7.5 10h5M10 7.5v5"/></svg>Analisis</button>
+  <button class="tb" data-aksi="verifikasi" data-perlu="kasus" title="Verifikasi rantai bukti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7h-2a4 4 0 000 8h2M15 7h2a4 4 0 010 8h-2M8 11h8"/></svg>Rantai bukti</button>
+  <button class="tb" data-aksi="laporan" data-perlu="kasus" title="Buat laporan (Ctrl+R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 15h7M9 18h4"/></svg>Laporan</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <span class="redup" style="font-size:11px">Model</span>
+    <select id="pilihModel" style="width:300px"></select>
+  </div>
+</div>
+
+<div id="utama">
+  <div id="pohon"></div>
+  <div id="isi"><div id="atas"></div><div id="bawah"></div></div>
+</div>
+
+<div id="konsol" class="kecil">
+  <div class="kepala" id="konsolKepala"><span id="konsolJudul">Konsol &middot; tidak ada pekerjaan berjalan</span>
+    <div class="bar"><i id="konsolBar"></i></div><span id="konsolTahap"></span><span style="margin-left:auto" id="konsolToggle">&#9650;</span></div>
+  <div id="konsolLog"></div>
+</div>
+<div id="status"><span id="stSistem">Memuat...</span><span id="stKasus">Tidak ada kasus terbuka</span><span id="stModel"></span><span class="kanan" id="stJam"></span></div>
+<div id="tirai"></div>
+<div id="notif"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const h = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f = p => "/file?p=" + encodeURIComponent(p);
+/* ------------------------------------------------------------ bahasa (Indonesia / English)
+   Ln(id, en): teks tampilan. TR(teks): teks data tersimpan (selalu bahasa Indonesia di hasil.json/bukti.json),
+   diterjemahkan dengan kamus dari server (api "info" -> kamus_data). */
+let BHS = "id";
+const Ln = (id, en) => BHS === "en" ? en : id;
+const dwi = (id, en) => new Proxy({}, {get: (_, k) => (BHS === "en" ? en : id)[k]});
+const TR = t => {
+  if (BHS !== "en" || typeof t !== "string" || !t) return t;
+  const k = S.info?.kamus_data; if (!k) return t;
+  if (k.tepat[t]) return k.tepat[t];
+  for (const [pola, ganti] of k.pola) { const r = new RegExp(pola); if (r.test(t)) return t.replace(r, ganti); }
+  const m = t.match(/^(.+): (HILANG|BERUBAH)$/); if (m) return m[1] + ": " + (k.status_file[m[2]] || m[2]);
+  return t;
+};
+const sumberUji = k => BHS === "en" ? ({keseluruhan:"overall", indonesia:"Indonesia", celebdf:"Celeb-DF", wild:"in the wild"}[k] || k) : k;
+const stF = st => BHS === "en" ? (S.info?.kamus_data?.status_file?.[st] || st) : st;
+const STJOB = dwi({antri:"antri", berjalan:"berjalan", selesai:"selesai", gagal:"gagal"}, {antri:"queued", berjalan:"running", selesai:"done", gagal:"failed"});
+const LOKAL = () => BHS === "en" ? "en-GB" : "id-ID";
+const STATIS = {"Forensik Deepfake":"Deepfake Forensics", "Berkas":"File", "Kasus baru...":"New case...", "Buka kasus...":"Open case...",
+  "Tutup kasus":"Close case", "Barang bukti":"Evidence", "Tambah barang bukti...":"Add evidence...",
+  "Verifikasi hash bukti terpilih":"Verify hash of selected evidence", "Analisis":"Analysis", "Jalankan analisis deepfake...":"Run deepfake analysis...",
+  "Verifikasi rantai bukti kasus":"Verify case chain of custody", "Laporan":"Report", "Buat laporan (PDF + HTML)...":"Create report (PDF + HTML)...",
+  "Daftar laporan":"Report list", "Bantuan":"Help", "Tentang aplikasi":"About", "Kasus baru":"New case", "Buka kasus":"Open case",
+  "Tambah bukti":"Add evidence", "Rantai bukti":"Chain of custody", "Konsol · tidak ada pekerjaan berjalan":"Console · no job running",
+  "Memuat...":"Loading...", "Tidak ada kasus terbuka":"No case open",
+  "Kasus baru (Ctrl+N)":"New case (Ctrl+N)", "Buka kasus (Ctrl+O)":"Open case (Ctrl+O)", "Tambah barang bukti (Ctrl+I)":"Add evidence (Ctrl+I)",
+  "Verifikasi hash":"Verify hash", "Analisis deepfake (F5)":"Deepfake analysis (F5)", "Verifikasi rantai bukti":"Verify chain of custody",
+  "Buat laporan (Ctrl+R)":"Create report (Ctrl+R)"};
+const STATIS_BALIK = Object.fromEntries(Object.entries(STATIS).map(([a, b]) => [b, a]));
+function terapkanStatis() {  // teks HTML statis (menu, toolbar, konsol, status bar) dua arah, tanpa menyimpan keadaan
+  const peta = BHS === "en" ? STATIS : STATIS_BALIK;
+  for (const akar of ["#menu", "#alat", "#konsol", "#status"].map(x => document.querySelector(x))) {
+    const w = document.createTreeWalker(akar, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) { const t = n.nodeValue.trim(); if (peta[t]) n.nodeValue = n.nodeValue.replace(t, peta[t]); }
+    akar.querySelectorAll("[title]").forEach(el => { if (peta[el.title]) el.title = peta[el.title]; });
+  }
+  document.documentElement.lang = BHS;
+  document.querySelectorAll("#bahasaUI button").forEach(b => b.classList.toggle("aktif", b.dataset.bhs === BHS));
+}
+async function gantiBahasa(b) {
+  if (b === BHS) return;
+  try { await api("bahasa", {bahasa:b}); } catch (e) { notif(e.message, true); return; }
+  BHS = b; terapkanStatis(); S.cache = {}; await segarkan();
+}
+const KES = dwi({TERINDIKASI:"Terindikasi deepfake", RAGU:"Perlu pemeriksaan lanjutan", TIDAK:"Tidak terindikasi", TIDAK_ADA_WAJAH:"Wajah tidak cukup", BELUM:"Belum dianalisis"},
+  {TERINDIKASI:"Deepfake indicated", RAGU:"Further examination required", TIDAK:"Not indicated", TIDAK_ADA_WAJAH:"Not enough faces", BELUM:"Not analyzed"});
+const WARNA_ORANG = ["#4ea1ff","#ff6b6b","#5ad17a","#c38bff","#ffad4d"];
+const S = {info:null, kasus:null, data:null, bb:null, tab:"ringkasan", node:"bukti", centang:new Set(), segmen:null, job:null, pilihAn:{}, cache:{}};
+const ATURAN = dwi({merata:"frame merata (aturan lama)", berurutan:"20 frame berurutan 25 fps (aturan baru)", otomatis:"otomatis sesuai model"},
+  {merata:"evenly spaced frames (old rule)", berurutan:"20 consecutive frames at 25 fps (new rule)", otomatis:"automatic, as trained"});
+const ATURAN_PENDEK = dwi({merata:"merata (lama)", berurutan:"berurutan 25 fps (baru)"}, {merata:"even (old)", berurutan:"consecutive 25 fps (new)"});
+const labelModel = m => `${m.nama} · ${Ln("skenario", "scenario")} ${m.skenario} · ${ATURAN_PENDEK[m.aturan_frame] || m.aturan_frame} · crop m${m.margin} ${m.ukuran}px · val AUC ${(+m.val_auc).toFixed(3)}`;
+/* analisis yang sedang ditampilkan untuk bukti b (pilihan pengguna, atau yang terbaru) */
+const an = b => { const id = S.pilihAn[b.id]; return (id && S.cache[b.id + "/" + id]) || b.analisis; };
+
+async function api(nama, data = {}) {
+  const r = await fetch("/api/" + nama, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)});
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.galat);
+  return j.data;
+}
+function notif(teks, galat = false) {
+  const d = document.createElement("div");
+  d.className = "notif" + (galat ? " galat" : ""); d.textContent = teks;
+  $("#notif").append(d); setTimeout(() => d.remove(), galat ? 9000 : 4500);
+}
+const ukuran = n => { n = +n || 0; for (const s of ["B","KB","MB","GB"]) { if (n < 1024 || s === "GB") return (s === "B" ? n : n.toFixed(2)) + " " + s; n /= 1024; } };
+const jam = d => { d = Math.floor(+d || 0); const j = Math.floor(d / 3600), m = Math.floor(d % 3600 / 60), s = d % 60, p = x => String(x).padStart(2, "0"); return (j ? p(j) + ":" : "") + p(m) + ":" + p(s); };
+const lencana = st => `<span class="lencana ${st}">${h(KES[st] || st).toUpperCase()}</span>`;
+/* warna skor: merah = >= batas toleransi (terindikasi), oranye = >= ambang Youden (perlu diperiksa), hijau = di bawahnya */
+const warnaSkor = (v, a) => v === null || v === undefined ? "" : v >= a.ambang ? "var(--merah)"
+  : (a.ambang_rendah !== null && a.ambang_rendah !== undefined && v >= a.ambang_rendah) ? "var(--oranye)" : "var(--hijau)";
+const teksAmbang = a => (a.ambang_rendah !== null && a.ambang_rendah !== undefined)
+  ? `Youden ${a.ambang_rendah.toFixed(3)} · ${Ln("toleransi", "tolerance")} ${a.ambang.toFixed(3)}` : `${a.ambang.toFixed(3)}`;
+/* batas bawah: di bawah ini segmen/skor dinilai asli */
+const ambBawah = a => (a.ambang_rendah !== null && a.ambang_rendah !== undefined) ? a.ambang_rendah : a.ambang;
+const GAB = "@gabungan";
+const skorModel = (obj, a) => a.gabungan && obj && obj.length !== 0 ? Object.entries(obj).map(([k, v]) => `${h(k)} ${(+v).toFixed(3)}`).join(" · ") : "";
+const CARA = dwi({maks: "skor tertinggi", rata: "rata-rata"}, {maks: "highest score", rata: "mean"});
+const statusBukti = b => an(b) ? an(b).status : "BELUM";
+/* Tampilkan analisis dari model yang dipilih di toolbar (yang terbaru untuk model itu). Bila bukti belum pernah
+   dianalisis dengan model tersebut, tampilkan analisis terakhir apa pun. Pilihan manual (dropdown Analisis) tetap. */
+async function sinkronModel() {
+  if (!S.data) return;
+  const v = $("#pilihModel").value, nm = (S.info?.model.find(x => x.folder === v) || {}).nama;
+  for (const b of S.data.bukti) {
+    if (S.pilihManual?.[b.id]) continue;
+    const r = (b.riwayat_analisis || []).filter(x => v === GAB ? x.gabungan : x.model === nm).pop();
+    if (!r) { delete S.pilihAn[b.id]; continue; }
+    if (b.analisis && b.analisis.id === r.id) { delete S.pilihAn[b.id]; continue; }
+    const k = b.id + "/" + r.id;
+    try { if (!S.cache[k]) S.cache[k] = await api("analisis_detail", {kasus:S.kasus, bukti:b.id, id:r.id}); S.pilihAn[b.id] = r.id; }
+    catch (e) { delete S.pilihAn[b.id]; }
+  }
+}
+const bukti = () => S.data?.bukti.find(b => b.id === S.bb);
+
+/* ------------------------------------------------------------ muat */
+async function muatInfo() {
+  S.info = await api("info");
+  if (S.info.bahasa && S.info.bahasa !== BHS) { BHS = S.info.bahasa; }
+  terapkanStatis();
+  const sel = $("#pilihModel"), lama = sel.value;
+  sel.innerHTML = S.info.model.length ? S.info.model.map(m =>
+    `<option value="${h(m.folder)}">${h(labelModel(m))}</option>`).join("")
+    : `<option value="">${Ln("(belum ada model Xception + LSTM)", "(no Xception + LSTM model yet)")}</option>`;
+  if (S.info.model.length > 1) sel.innerHTML += `<option value="${GAB}">${Ln("GABUNGAN beberapa model (analisis gabungan terbaru)", "ENSEMBLE of several models (latest ensemble analysis)")}</option>`;
+  if (lama && (lama === GAB || S.info.model.some(m => m.folder === lama))) sel.value = lama;
+  const si = S.info.sistem;
+  $("#stSistem").textContent = si.status === "siap" ? `● ${Ln("Siap", "Ready")} · ${si.gpu ? "GPU " + si.gpu : Ln("CPU (tanpa GPU)", "CPU (no GPU)")} · PyTorch ${si.torch}` : "● " + (si.status === "memuat" ? Ln("Memuat...", "Loading...") : si.status);
+  if (si.status === "memuat") setTimeout(muatInfo, 2500);
+  statusModel();
+}
+function statusModel() {
+  if ($("#pilihModel").value === GAB) { $("#stModel").textContent = Ln("Model: GABUNGAN (menampilkan analisis gabungan terbaru tiap bukti)", "Model: ENSEMBLE (showing the latest ensemble analysis of each item)"); return; }
+  const m = S.info?.model.find(x => x.folder === $("#pilihModel").value);
+  $("#stModel").textContent = m ? `Model: ${m.nama} · ${ATURAN_PENDEK[m.aturan_frame] || ""} (${Ln("ambang Youden", "Youden threshold")} ${(+((m.ambang_kandidat || {}).youden ?? m.ambang_val)).toFixed(3)}${(m.ambang_kandidat || {}).fpr5 !== undefined ? ` · ${Ln("batas toleransi 5%", "5% tolerance limit")} ${(+m.ambang_kandidat.fpr5).toFixed(3)}` : ""})` : "Model: -";
+}
+async function bukaKasusId(id) {
+  S.data = await api("kasus", {kasus:id});
+  if (S.kasus !== id) { S.bb = null; S.centang = new Set(); S.node = "bukti"; }
+  S.kasus = id;
+  if (S.bb && !bukti()) S.bb = null;
+  if (!S.bb && S.data.bukti.length) S.bb = S.data.bukti[0].id;
+  const k = S.data.kasus;
+  $("#stKasus").textContent = `${Ln("Kasus", "Case")} ${k.nomor} · ${k.judul || ""} · ${Ln("pemeriksa", "examiner")} ${k.pemeriksa}`;
+  document.title = `${Ln("Forensik Deepfake", "Deepfake Forensics")} - ${k.nomor}`;
+  await sinkronModel();
+  render();
+}
+async function segarkan() { await muatInfo(); if (S.kasus) await bukaKasusId(S.kasus); else render(); }
+
+/* ------------------------------------------------------------ render */
+function render() { renderPohon(); renderAtas(); renderBawah(); aturTombol(); }
+function aturTombol() {
+  $$("[data-perlu]").forEach(el => {
+    const ok = el.dataset.perlu === "kasus" ? !!S.kasus : !!(S.kasus && S.bb);
+    el.disabled = !ok; el.classList.toggle("mati", !ok);
+  });
+}
+const IKON = {
+  kasus:'<svg viewBox="0 0 24 24" fill="none" stroke="#f0c050" stroke-width="1.8"><path d="M3 6h7l2 2h9v11H3z"/></svg>',
+  bukti:'<svg viewBox="0 0 24 24" fill="none" stroke="#8fb8ff" stroke-width="1.8"><rect x="3" y="5" width="14" height="14" rx="1"/><path d="M17 10l4-2v8l-4-2"/></svg>',
+  laporan:'<svg viewBox="0 0 24 24" fill="none" stroke="#c9d1dc" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 15h7"/></svg>',
+  log:'<svg viewBox="0 0 24 24" fill="none" stroke="#c9d1dc" stroke-width="1.8"><path d="M9 7h-2a4 4 0 000 8h2M15 7h2a4 4 0 010 8h-2M8 11h8"/></svg>',
+};
+function renderPohon() {
+  const p = $("#pohon");
+  let s = `<div class="judul-panel">${Ln("Penjelajah kasus", "Case explorer")}</div>`;
+  if (!S.kasus) {
+    s += `<div class="node redup" style="cursor:default">${Ln("Belum ada kasus terbuka", "No case open")}</div>`;
+    if (S.info?.kasus.length) {
+      s += `<div class="judul-panel" style="margin-top:8px">${Ln("Kasus terbaru", "Recent cases")}</div>` + S.info.kasus.slice(0, 12).map(k =>
+        `<div class="node" data-buka="${h(k.id)}">${IKON.kasus}<span>${h(k.nomor)}</span><span class="jml">${k.jumlah_bukti}</span></div>`).join("");
+    }
+  } else {
+    const d = S.data, k = d.kasus;
+    s += `<div class="node" style="font-weight:600">${IKON.kasus}<span>${h(k.nomor)}</span></div>`;
+    s += `<div class="node ${S.node === "bukti" && !S.bb ? "aktif" : ""}" style="padding-left:22px" data-node="bukti">${IKON.bukti}<span>${Ln("Barang bukti", "Evidence")}</span><span class="jml">${d.bukti.length}</span></div>`;
+    for (const b of d.bukti) {
+      const st = statusBukti(b);
+      const w = {TERINDIKASI:"var(--merah)", RAGU:"var(--oranye)", TIDAK:"var(--hijau)"}[st] || "var(--abu)";
+      s += `<div class="node ${S.node === "bukti" && S.bb === b.id ? "aktif" : ""}" style="padding-left:40px" data-bb="${b.id}" title="${h(b.nama_file)}">
+        <span class="titik" style="background:${w}"></span><span>${b.id} · ${h(b.nama_file)}</span></div>`;
+    }
+    s += `<div class="node ${S.node === "laporan" ? "aktif" : ""}" style="padding-left:22px" data-node="laporan">${IKON.laporan}<span>${Ln("Laporan", "Reports")}</span><span class="jml">${d.laporan.length}</span></div>`;
+    s += `<div class="node ${S.node === "log" ? "aktif" : ""}" style="padding-left:22px" data-node="log">${IKON.log}<span>${Ln("Rantai bukti (log)", "Chain of custody (log)")}</span><span class="jml">${d.log.length}</span></div>`;
+    s += `<div class="judul-panel" style="margin-top:10px">${Ln("Informasi kasus", "Case information")}</div><div class="halaman" style="padding:8px 10px">
+      <table class="kv info" style="font-size:12px"><tr><th>${Ln("Judul", "Title")}</th><td>${h(k.judul || "-")}</td></tr>
+      <tr><th>${Ln("Pemeriksa", "Examiner")}</th><td>${h(k.pemeriksa)}</td></tr><tr><th>${Ln("Instansi", "Institution")}</th><td>${h(k.instansi || "-")}</td></tr>
+      <tr><th>${Ln("Dibuat", "Created")}</th><td>${h(k.dibuat_wib)}</td></tr><tr><th>${Ln("Keterangan", "Notes")}</th><td>${h(k.keterangan || "-")}</td></tr></table></div>`;
+  }
+  p.innerHTML = s;
+  $$("[data-buka]", p).forEach(el => el.onclick = () => bukaKasusId(el.dataset.buka));
+  $$("[data-node]", p).forEach(el => el.onclick = () => { S.node = el.dataset.node; if (S.node === "bukti") S.bb = S.bb; render(); });
+  $$("[data-bb]", p).forEach(el => el.onclick = () => { S.node = "bukti"; S.bb = el.dataset.bb; render(); });
+}
+
+function renderAtas() {
+  const a = $("#atas");
+  if (!S.kasus) {
+    a.innerHTML = `<div class="kosong"><svg viewBox="0 0 24 24" width="54" height="54" fill="none" stroke="#3d8bfd" stroke-width="1.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6M11 8v6"/></svg>
+      <div style="font-size:18px;color:#fff">${Ln("Forensik Deepfake Video", "Deepfake Video Forensics")}</div>
+      <div>${Ln("Pemeriksaan manipulasi wajah dengan model Xception + LSTM dan Grad-CAM.<br>Alur: kasus &rarr; akuisisi bukti (hash) &rarr; analisis &rarr; laporan PDF/HTML &rarr; verifikasi rantai bukti.", "Facial manipulation examination with an Xception + LSTM model and Grad-CAM.<br>Workflow: case &rarr; evidence acquisition (hash) &rarr; analysis &rarr; PDF/HTML report &rarr; chain of custody verification.")}</div>
+      <div style="display:flex;gap:8px"><button class="tombol utama" data-aksi="kasusBaru">${Ln("Kasus baru", "New case")}</button><button class="tombol" data-aksi="bukaKasus">${Ln("Buka kasus", "Open case")}</button></div></div>`;
+    ikatAksi(a); return;
+  }
+  if (S.node === "laporan") return renderLaporan(a);
+  if (S.node === "log") return renderLog(a, null);
+  const d = S.data;
+  if (!d.bukti.length) {
+    a.innerHTML = `<div class="kosong"><div>${Ln("Belum ada barang bukti di kasus ini.", "This case has no evidence yet.")}</div><button class="tombol utama" data-aksi="tambahBukti">${Ln("Tambah barang bukti", "Add evidence")}</button></div>`;
+    ikatAksi(a); return;
+  }
+  let s = `<div class="judul-panel"><span>${Ln("Barang bukti", "Evidence")} (${d.bukti.length})</span><span>${Ln("centang untuk analisis / laporan sebagian", "tick items to analyze or report only some")}</span></div><div class="gulir"><table class="grid"><thead><tr>
+    <th style="width:28px"><input type="checkbox" id="centangSemua" style="width:auto" title="${Ln("Centang / hapus centang semua", "Tick / untick all")}"></th><th>ID</th><th>${Ln("Nama file", "File name")}</th><th>${Ln("Ukuran", "Size")}</th><th>${Ln("Durasi", "Duration")}</th><th>${Ln("Resolusi", "Resolution")}</th>
+    <th>${Ln("SHA-256 (salinan)", "SHA-256 (copy)")}</th><th>${Ln("Akuisisi", "Acquisition")}</th><th>Hash</th><th>${Ln("Kesimpulan", "Conclusion")}</th><th>${Ln("Skor rata-rata maks", "Max mean score")}</th><th>${Ln("Analisis", "Analysis")}</th></tr></thead><tbody>`;
+  for (const b of d.bukti) {
+    const m = b.metadata, an_ = an(b), st = statusBukti(b);
+    const top = an_ ? Math.max(...an_.ringkasan_orang.map(o => o.skor_rata), -1) : -1;
+    s += `<tr data-bb="${b.id}" class="${b.id === S.bb ? "pilih" : ""}"><td><input type="checkbox" data-c="${b.id}" style="width:auto" ${S.centang.has(b.id) ? "checked" : ""}></td>
+      <td>${b.id}</td><td title="${h(b.nama_file)}">${h(b.nama_file)}</td><td>${ukuran(b.asal.ukuran_byte)}</td><td>${jam(m.durasi_detik)}</td>
+      <td>${m.lebar}x${m.tinggi} @ ${(+m.fps).toFixed(2)}</td><td class="mono">${b.salinan.hash.sha256}</td><td>${h(b.akuisisi_selesai_wib)}</td>
+      <td style="color:${b.hash_cocok ? "var(--hijau)" : "var(--merah)"}">${b.hash_cocok ? Ln("identik", "identical") : Ln("BERBEDA", "DIFFERENT")}</td>
+      <td>${lencana(st)}</td><td>${top >= 0 ? top.toFixed(3) : "-"}</td><td title="${an_ ? h(an_.model.nama) : ""}">${b.jumlah_analisis}x${an_ ? ` · ${h(an_.model.nama)}` : ""}</td></tr>`;
+  }
+  a.innerHTML = s + "</tbody></table></div>";
+  $$("tbody tr", a).forEach(tr => tr.onclick = e => { if (e.target.type === "checkbox") return; S.bb = tr.dataset.bb; S.segmen = null; render(); });
+  const semua = $("#centangSemua");
+  const sinkronSemua = () => {  // kotak header mengikuti keadaan: semua -> tercentang, sebagian -> setengah
+    const n = d.bukti.filter(b => S.centang.has(b.id)).length;
+    semua.checked = n > 0 && n === d.bukti.length;
+    semua.indeterminate = n > 0 && n < d.bukti.length;
+  };
+  $$("[data-c]", a).forEach(c => c.onchange = () => { c.checked ? S.centang.add(c.dataset.c) : S.centang.delete(c.dataset.c); sinkronSemua(); });
+  semua.onchange = () => {
+    const semuaTercentang = d.bukti.every(b => S.centang.has(b.id));
+    S.centang = new Set(semuaTercentang ? [] : d.bukti.map(b => b.id));
+    $$("[data-c]", a).forEach(c => { c.checked = S.centang.has(c.dataset.c); });
+    sinkronSemua();
+  };
+  sinkronSemua();
+}
+
+function renderLaporan(a) {
+  const LP = S.data.laporan;
+  a.innerHTML = `<div class="judul-panel"><span>${Ln("Laporan", "Reports")} (${LP.length})</span></div><div class="gulir">${LP.length ? `<table class="grid"><thead><tr><th>File</th><th>${Ln("Jenis", "Type")}</th><th>${Ln("Ukuran", "Size")}</th><th>${Ln("Waktu", "Time")}</th><th></th></tr></thead><tbody>` +
+    LP.map(l => `<tr><td>${h(l.nama)}</td><td>${l.nama.endsWith(".pdf") ? "PDF" : "HTML"}</td><td>${ukuran(l.ukuran_byte)}</td><td>${h(l.waktu)}</td>
+      <td><button class="tombol" data-bukafile="${h(l.file)}">${Ln("Buka", "Open")}</button></td></tr>`).join("") + "</tbody></table>"
+    : `<div class="kosong"><div>${Ln("Belum ada laporan.", "No reports yet.")}</div><button class="tombol utama" data-aksi="laporan">${Ln("Buat laporan", "Create report")}</button></div>`}</div>`;
+  ikatAksi(a); ikatBukaFile(a);
+  $("#bawah").innerHTML = `<div class="kosong">${Ln("Laporan PDF dan HTML tersimpan di folder kasus dan tercatat di rantai bukti.", "PDF and HTML reports are saved in the case folder and recorded in the chain of custody.")}</div>`;
+}
+function renderLog(el, bb) {
+  const log = S.data.log.filter(x => !bb || x.file.includes("/bukti/" + bb + "/") || (x.info && x.info.bukti === bb));
+  el.innerHTML = `${bb ? "" : `<div class="judul-panel"><span>${Ln(`Rantai bukti: ${log.length} entri (log berantai SHA-256)`, `Chain of custody: ${log.length} entries (SHA-256 chained log)`)}</span><button class="tombol" data-aksi="verifikasi" style="padding:2px 10px">${Ln("Verifikasi", "Verify")}</button></div>`}
+    <div class="gulir"><table class="grid"><thead><tr><th>No</th><th>${Ln("Waktu", "Time")}</th><th>${Ln("Kegiatan", "Activity")}</th><th>File</th><th>SHA-256</th><th>Operator</th><th>${Ln("Hash entri", "Entry hash")}</th></tr></thead><tbody>` +
+    log.map(x => `<tr><td>${x.no}</td><td>${h(x.waktu_wib)}</td><td>${h(x.langkah)}</td><td title="${h(x.file)}">${h(x.file.split("/kasus_forensik/").pop())}</td>
+      <td class="mono">${x.sha256.slice(0, 20)}…</td><td>${h(x.operator)}@${h(x.komputer)}</td><td class="mono">${x.hash_entri.slice(0, 16)}…</td></tr>`).join("") + "</tbody></table></div>";
+  ikatAksi(el);
+  if (!bb) $("#bawah").innerHTML = `<div class="kosong">${Ln("Setiap entri menyimpan hash entri sebelumnya; perubahan atau penghapusan entri terdeteksi saat verifikasi.", "Each entry stores the hash of the previous entry; edited or deleted entries are detected during verification.")}</div>`;
+}
+
+/* ------------------------------------------------------------ detail bukti */
+const TAB = () => BHS === "en"
+  ? [["ringkasan","Summary"],["banding","Analysis comparison"],["pemutar","Video player"],["waktu","Timeline"],["wajah","Faces"],["gradcam","Grad-CAM"],["hash","Hashes & integrity"],["metadata","Metadata"],["logbb","Evidence log"]]
+  : [["ringkasan","Ringkasan"],["banding","Perbandingan analisis"],["pemutar","Pemutar video"],["waktu","Garis waktu"],["wajah","Wajah"],["gradcam","Grad-CAM"],["hash","Hash & integritas"],["metadata","Metadata"],["logbb","Log bukti"]];
+function renderBawah() {
+  const el = $("#bawah");
+  if (!S.kasus || S.node !== "bukti") { if (!S.kasus) el.innerHTML = ""; return; }
+  const b = bukti();
+  if (!b) { el.innerHTML = `<div class="kosong">${Ln("Pilih barang bukti.", "Select an evidence item.")}</div>`; return; }
+  const R = b.riwayat_analisis || [], aktif = an(b);
+  const pilihRun = R.length ? `<select id="pilihRun" style="width:auto;max-width:520px;margin:3px 8px;padding:2px 6px;font-size:12px">${R.slice().reverse().map(r =>
+    `<option value="${h(r.id)}" ${aktif && aktif.id === r.id ? "selected" : ""}>${h(r.waktu_wib)} · ${h(r.model)} · ${h(ATURAN_PENDEK[r.aturan_frame] || r.aturan_frame)} · ${h(KES[r.status] || r.status)}</option>`).join("")}</select>` : "";
+  el.innerHTML = `<div class="tabbar">${TAB().map(([k, n]) => `<div class="tab ${S.tab === k ? "aktif" : ""}" data-tab="${k}">${n}${k === "banding" && R.length ? ` (${R.length})` : ""}</div>`).join("")}
+    <div style="margin-left:auto;display:flex;align-items:center;color:var(--redup)">${R.length ? Ln("Analisis:", "Analysis:") : ""}${pilihRun}<span style="padding:6px 12px">${b.id} · ${h(b.nama_file)}</span></div></div><div class="gulir" id="halamanTab"></div>`;
+  $$("[data-tab]", el).forEach(t => t.onclick = () => { S.tab = t.dataset.tab; renderBawah(); });
+  const pr = $("#pilihRun"); if (pr) pr.onchange = () => pilihAnalisis(b.id, pr.value);
+  const hal = $("#halamanTab");
+  ({ringkasan:tabRingkasan, banding:tabBanding, pemutar:tabPemutar, waktu:tabWaktu, wajah:tabWajah, gradcam:tabGradcam, hash:tabHash, metadata:tabMetadata,
+    logbb:(hl, b) => renderLog(hl, b.id)})[S.tab](hal, b);
+}
+async function pilihAnalisis(bb, id, tab) {
+  const k = bb + "/" + id;
+  try {
+    if (!S.cache[k]) S.cache[k] = await api("analisis_detail", {kasus:S.kasus, bukti:bb, id});
+    S.pilihAn[bb] = id; S.pilihManual = S.pilihManual || {}; S.pilihManual[bb] = true;
+    S.segmen = null; if (tab) S.tab = tab; render();
+  } catch (e) { notif(e.message, true); }
+}
+function tabBanding(hal, b) {
+  const R = (b.riwayat_analisis || []).slice().reverse(), aktif = an(b);
+  if (!R.length) return belum(hal);
+  const orang = [...new Set(R.flatMap(r => r.orang.map(o => o.orang)))].sort();
+  hal.innerHTML = `<div class="halaman"><div class="redup" style="margin-bottom:8px">${Ln("Semua analisis barang bukti ini, untuk membandingkan model dan aturan pengambilan frame. Klik <b>Tampilkan</b> untuk melihat detail (garis waktu, wajah, Grad-CAM) analisis tersebut. Jalankan analisis dengan beberapa model sekaligus lewat F5.", "All analyses of this evidence item, to compare models and frame sampling rules. Click <b>Show</b> to see the details (timeline, faces, Grad-CAM) of an analysis. Run an analysis with several models at once with F5.")}</div>
+    <table class="grid"><thead><tr><th></th><th>${Ln("Waktu", "Time")}</th><th>Model</th><th>${Ln("Data latih", "Training data")}</th><th>${Ln("Aturan frame", "Frame rule")}</th><th>${Ln("Ambang (toleransi / Youden)", "Thresholds (tolerance / Youden)")}</th>
+    ${orang.map(o => `<th>${Ln("Skor rata", "Mean score")} ${h(o)}</th>`).join("")}<th>${Ln("Kesimpulan", "Conclusion")}</th><th>${Ln("Durasi", "Duration")}</th></tr></thead><tbody>` +
+    R.map(r => `<tr class="${aktif && aktif.id === r.id ? "pilih" : ""}"><td><button class="tombol" style="padding:1px 8px" data-run="${h(r.id)}">${Ln("Tampilkan", "Show")}</button></td>
+      <td>${h(r.waktu_wib)}</td><td>${h(r.model)}${r.gabungan ? `<br><span class="redup" style="font-size:11px">${Ln("gabungan", "ensemble")} ${CARA[r.gabungan]}${r.skor_rata_model ? " · " + skorModel(r.skor_rata_model, r) : ""}</span>` : ""}</td><td>${h(r.skenario || "")} ${h(TR(r.nama_skenario || ""))}</td>
+      <td>${h(ATURAN_PENDEK[r.aturan_frame] || r.aturan_frame)}${r.aturan_sesuai_model ? "" : Ln(' <span style="color:var(--oranye)" title="berbeda dengan aturan saat model dilatih">≠ latih</span>', ' <span style="color:var(--oranye)" title="differs from the rule used in training">≠ training</span>')}</td>
+      <td>${(+r.ambang).toFixed(3)}${r.ambang_rendah != null ? ` / ${(+r.ambang_rendah).toFixed(3)}` : ""}</td>${orang.map(o => { const x = r.orang.find(q => q.orang === o);
+        return `<td style="color:${!x ? "" : warnaSkor(x.skor_rata, r)}">${x ? x.skor_rata.toFixed(3) + ` <span class="redup">(${Ln("maks", "max")} ${x.skor_maks.toFixed(3)})</span>` : "-"}</td>`; }).join("")}
+      <td>${lencana(r.status)}</td><td>${r.durasi_proses_detik} ${Ln("dtk", "s")}</td></tr>`).join("") + `</tbody></table>
+    <div class="redup" style="font-size:11.5px;margin-top:8px">${Ln("Catatan: label orang (P1, P2, ...) ditentukan per analisis; biasanya sama untuk video yang sama, tapi pastikan lewat frame kunci di tab Garis waktu. \"≠ latih\" = aturan frame berbeda dengan saat model dilatih (berguna untuk membandingkan, tapi skornya kurang bisa dipegang).", "Note: person labels (P1, P2, ...) are assigned per analysis; they are usually the same for the same video, but confirm with the key frames in the Timeline tab. \"≠ training\" = the frame rule differs from the one used in training (useful for comparison, but the score is less reliable).")}</div></div>`;
+  $$("[data-run]", hal).forEach(x => x.onclick = () => pilihAnalisis(b.id, x.dataset.run, "ringkasan"));
+}
+function belum(hal) {
+  hal.innerHTML = `<div class="kosong" style="padding:30px"><div>${Ln("Barang bukti ini belum dianalisis.", "This evidence item has not been analyzed.")}</div><button class="tombol utama" data-aksi="analisis">${Ln("Jalankan analisis", "Run analysis")}</button></div>`;
+  ikatAksi(hal);
+}
+function tabRingkasan(hal, b) {
+  const a = an(b);
+  if (!a) return belum(hal);
+  const top = Math.max(...a.ringkasan_orang.map(o => o.skor_rata), 0);
+  const m = a.model;
+  hal.innerHTML = `<div class="halaman"><div class="kartu vonis"><div><div class="redup">${Ln("Kesimpulan", "Conclusion")}</div><div class="besar">${lencana(a.status)}</div></div>
+    <div><div class="redup">${Ln("Skor rata-rata tertinggi", "Highest mean score")}</div><div class="besar">${top.toFixed(3)}</div></div>
+    <div><div class="redup">${Ln("0 asli &larr; skor &rarr; 1 fake", "0 real &larr; score &rarr; 1 fake")}</div><div class="meter"><b style="left:${a.ambang * 100}%"></b>${a.ambang_rendah != null ? `<b style="left:${a.ambang_rendah * 100}%;background:#0006"></b>` : ""}<i style="left:calc(${top * 100}% - 1px)"></i></div>
+      <div class="redup" style="font-size:11px;margin-top:4px">${a.ambang_rendah != null ? Ln(`garis: ambang Youden ${a.ambang_rendah.toFixed(3)} (mulai perlu diperiksa) · batas toleransi ${a.ambang.toFixed(3)} (terindikasi)`, `lines: Youden threshold ${a.ambang_rendah.toFixed(3)} (examination starts) · tolerance limit ${a.ambang.toFixed(3)} (indicated)`) : Ln(`garis gelap = ambang ${a.ambang.toFixed(3)}`, `dark line = threshold ${a.ambang.toFixed(3)}`)}</div></div>
+    <div style="margin-left:auto;text-align:right" class="redup">${Ln("Analisis", "Analysis")} ${h(a.waktu_wib)}<br>${a.jumlah_segmen} ${Ln("segmen", "segments")} · ${a.durasi_proses_detik} ${Ln("dtk", "s")} · ${h(m.perangkat)}</div></div>
+    <div class="kartu"><h3>${Ln("Hasil per orang", "Results per person")}</h3>${a.ringkasan_orang.length ? `<table class="grid"><thead><tr><th>${Ln("Orang", "Person")}</th><th>${Ln("Segmen", "Segments")}</th><th>${Ln("Skor rata-rata", "Mean score")}</th><th>Median</th><th>${Ln("Maks", "Max")}</th><th>${Ln("Segmen", "Segments")} ≥ ${a.ambang_rendah != null ? Ln("batas toleransi", "tolerance limit") : Ln("ambang", "threshold")}</th>${a.ambang_rendah != null ? `<th>${Ln("Segmen ≥ ambang Youden", "Segments ≥ Youden threshold")}</th>` : ""}${a.gabungan ? `<th>${Ln("Skor mentah rata per model", "Raw mean score per model")}</th>` : ""}<th>${Ln("Kesimpulan", "Conclusion")}</th></tr></thead><tbody>` +
+      a.ringkasan_orang.map((o, i) => `<tr><td><span class="titik" style="display:inline-block;background:${WARNA_ORANG[i % 5]}"></span> <b>${h(o.orang)}</b></td><td>${o.segmen_dianalisis}</td>
+      <td style="color:${warnaSkor(o.skor_rata, a)}">${o.skor_rata.toFixed(3)}</td><td>${o.skor_median.toFixed(3)}</td><td>${o.skor_maks.toFixed(3)} (S${o.segmen_tertinggi})</td>
+      <td>${o.segmen_melewati_ambang} (${Math.round(o.porsi_melewati_ambang * 100)}%)</td>${a.ambang_rendah != null ? `<td>${o.segmen_melewati_rendah ?? "-"}</td>` : ""}${a.gabungan ? `<td style="font-size:11.5px">${skorModel(o.skor_rata_model, a)}</td>` : ""}<td>${lencana(o.status)}</td></tr>`).join("") + "</tbody></table>"
+      : `<div class="redup">${Ln("Tidak ada wajah yang cukup jelas dan cukup lama untuk dianalisis.", "No face is clear enough and visible long enough to analyze.")}</div>`}</div>
+    <div class="kolom2"><div class="kartu"><h3>Model</h3><table class="kv">
+      <tr><th>Model</th><td>${h(m.nama)}</td></tr>
+      ${a.gabungan ? (m.anggota || []).map(x => `<tr><th>${Ln("Anggota", "Member")} ${h(x.nama)}</th><td>${Ln("skenario", "scenario")} ${h(x.skenario)} · crop ${h(x.crop)} · ${x.ambang_peka != null ? `${Ln("ambang Youden", "Youden threshold")} ${(+x.ambang_peka).toFixed(3)} · ${Ln("batas toleransi", "tolerance limit")}` : Ln("ambang", "threshold")} ${(+x.ambang_yakin).toFixed(3)} · val AUC ${x.val_auc}</td></tr>`).join("")
+        + `<tr><th>${Ln("Cara gabung", "Combination")}</th><td>${CARA[a.gabungan]} ${Ln("pada skala terpadu: skor tiap model dipetakan menurut ambangnya sendiri (&lt; Youden → 0–0,33; Youden sampai batas toleransi → 0,33–0,67; ≥ batas toleransi → 0,67–1)", "on a unified scale: each model's score is mapped by its own thresholds (&lt; Youden → 0–0.33; Youden to tolerance limit → 0.33–0.67; ≥ tolerance limit → 0.67–1)")}</td></tr>` : ""}
+      <tr><th>${Ln("Arsitektur", "Architecture")}</th><td>${h(m.arsitektur)} (${h(m.backbone)}, LSTM ${m.lstm_hidden}x${m.lstm_lapis})</td></tr>
+      ${a.gabungan ? "" : `<tr><th>${Ln("Data latih", "Training data")}</th><td>${Ln("Skenario", "Scenario")} ${h(m.skenario)} ${h(TR(m.nama_skenario || ""))}</td></tr>
+      <tr><th>Val AUC</th><td>${m.val_auc}</td></tr>`}
+      ${a.ambang_rendah != null ? `<tr><th>${Ln("Ambang Youden (mulai perlu diperiksa)", "Youden threshold (examination starts)")}</th><td>${a.ambang_rendah.toFixed(3)} (${h(TR(a.jenis_ambang_rendah || ""))})</td></tr>` : ""}
+      <tr><th>${a.ambang_rendah != null ? Ln("Batas toleransi (terindikasi)", "Tolerance limit (indicated)") : Ln("Ambang (terindikasi)", "Threshold (indicated)")}</th><td>${a.ambang.toFixed(3)} (${h(TR(a.jenis_ambang))})</td></tr>
+      ${a.gabungan ? "" : Object.entries(m.uji || {}).map(([s, u]) => `<tr><th>Test ${h(sumberUji(s))}</th><td>AUC ${(+u.auc).toFixed(3)} · ${Ln("akurasi", "accuracy")} ${(+u.akurasi).toFixed(3)} · F1 ${(+u.f1).toFixed(3)}</td></tr>`).join("")}
+      <tr><th>${Ln("SHA-256 bobot", "Weights SHA-256")}</th><td class="mono">${m.sha256_bobot}</td></tr></table></div>
+    <div class="kartu"><h3>${Ln("Integritas saat analisis", "Integrity at analysis")}</h3><table class="kv">
+      <tr><th>${Ln("SHA-256 bukti", "Evidence SHA-256")}</th><td class="mono">${a.sha256_bukti}</td></tr>
+      <tr><th>${Ln("Dibanding akuisisi", "Compared with acquisition")}</th><td style="color:${a.sha256_bukti === b.salinan.hash.sha256 ? "var(--hijau)" : "var(--merah)"}">${a.sha256_bukti === b.salinan.hash.sha256 ? Ln("identik", "identical") : Ln("BERBEDA", "DIFFERENT")}</td></tr>
+      <tr><th>Operator</th><td>${h(a.operator)}@${h(a.komputer)}</td></tr>
+      <tr><th>${Ln("Segmen", "Segments")}</th><td>${a.pengaturan.durasi_segmen_detik} ${Ln("dtk", "s")} × ${a.pengaturan.frame_per_segmen} frame${a.ekstraksi.mode_frame === "berurutan" ? ` ${Ln("berurutan", "consecutive")} @${a.ekstraksi.fps_sampel} fps` : Ln(" merata", " evenly spaced")}${a.segmen_disampel ? Ln(" (disampel merata)", " (evenly sampled)") : ""}</td></tr>
+      <tr><th>${Ln("Aturan frame", "Frame rule")}</th><td>${h(ATURAN[(a.ekstraksi || {}).mode_frame] || "-")}${a.aturan_frame ? ` · ${Ln("dipilih", "selected")}: ${h(ATURAN[a.aturan_frame.dipilih] || a.aturan_frame.dipilih)} · ${Ln("saat latih", "in training")}: ${h(ATURAN_PENDEK[a.aturan_frame.aturan_model] || "-")}` : ""}
+        ${(b.riwayat_analisis || []).some(r => r.id === a.id && !r.aturan_sesuai_model) ? Ln('<br><span style="color:var(--oranye)">Berbeda dengan aturan saat model dilatih: skor untuk perbandingan saja.</span>', '<br><span style="color:var(--oranye)">Differs from the rule used in training: the score is for comparison only.</span>') : ""}</td></tr>
+      <tr><th>${Ln("Ekstraksi wajah", "Face extraction")}</th><td>MTCNN ${a.gabungan ? (m.anggota || []).map(x => h(x.crop)).join(" + ") : `${a.ekstraksi.ukuran}px, margin ${a.ekstraksi.margin}`}, prob ≥ ${a.ekstraksi.prob_min}</td></tr></table>
+      <p class="redup" style="font-size:11.5px">${Ln("Hasil adalah indikasi dari model, bukan pembuktian mandiri. Lihat keterbatasan di laporan.", "Results are an indication from the model, not standalone proof. See the limitations in the report.")}</p></div></div></div>`;
+}
+function tabPemutar(hal, b) {
+  const a = an(b);
+  hal.innerHTML = `<div class="halaman" style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px">
+    <div><video id="vid" src="${f(b.pratinjau ? b.pratinjau.file : b.salinan.file)}" controls style="width:100%;max-height:52vh;background:#000;border:1px solid var(--garis)"></video>
+    <div id="infoPutar" class="redup" style="font-size:11.5px;margin-top:4px">${b.pratinjau
+      ? Ln(`Memutar <b>video pratinjau H.264</b> (konversi dari salinan kerja karena kodek aslinya ${h(b.metadata.kodek_video || "")} tidak didukung pemutar). Hanya untuk ditonton; analisis, hash, dan laporan tetap memakai salinan kerja asli.`,
+           `Playing the <b>H.264 preview video</b> (converted from the working copy because its original codec ${h(b.metadata.kodek_video || "")} is not supported by the player). For viewing only; analysis, hashes, and reports still use the original working copy.`)
+      : Ln("Memutar salinan kerja read-only.", "Playing the read-only working copy.")}</div>${!b.pratinjau ? `<div id="tawarPratinjau" style="margin-top:6px;${b.perlu_pratinjau ? "" : "display:none"}">
+      <div class="temuan">${Ln(`Kodek video ini (${h(b.metadata.kodek_video || "-")}) tidak bisa diputar di aplikasi. Buat video pratinjau H.264 untuk ditonton? Salinan kerja tidak diubah.`, `This video codec (${h(b.metadata.kodek_video || "-")}) cannot be played in the application. Create an H.264 preview video for viewing? The working copy is not changed.`)}</div>
+      <button class="tombol utama" id="btnPratinjau" style="margin-top:6px">${Ln("Buat video pratinjau", "Create preview video")}</button></div>` : ""}</div>
+    <div class="kartu" style="max-height:58vh;overflow:auto"><h3>${Ln("Lompat ke segmen", "Jump to segment")}</h3>${a ? a.segmen.map(sg => {
+      const rs = a.hasil.filter(r => r.segmen === sg.no && r.skor !== null);
+      const mx = rs.length ? Math.max(...rs.map(r => r.skor)) : null;
+      return `<div class="node" data-t="${sg.mulai_detik}"><span class="titik" style="background:${mx === null ? "var(--abu)" : warnaSkor(mx, a)}"></span>
+        S${sg.no} · ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)}<span class="jml">${mx === null ? "-" : mx.toFixed(3)}</span></div>`; }).join("") : `<div class="redup">${Ln("Belum dianalisis.", "Not analyzed yet.")}</div>`}</div></div>`;
+  $$("[data-t]", hal).forEach(n => n.onclick = () => { const v = $("#vid"); v.currentTime = +n.dataset.t; v.play(); });
+  const vid = $("#vid"), tawar = $("#tawarPratinjau");
+  if (S.putarDari != null) {
+    const t = S.putarDari; S.putarDari = null;
+    vid.addEventListener("loadedmetadata", () => { vid.currentTime = t; vid.play().catch(() => {}); }, {once: true});
+  }
+  if (tawar) {
+    vid.onerror = () => { tawar.style.display = ""; };
+    $("#btnPratinjau").onclick = async () => {
+      try { pantau(await api("pratinjau", {kasus:S.kasus, bukti:b.id}), () => notif(`${b.id}: ${Ln("video pratinjau siap", "preview video ready")}`)); }
+      catch (e) { notif(e.message, true); }
+    };
+  }
+}
+/* Grad-CAM <-> garis waktu: waktu segmen (analisis lama belum menyimpan waktu di entri Grad-CAM) */
+function gcWaktu(a, g) {
+  const sg = a.segmen.find(q => q.no === g.segmen) || {};
+  return {mulai: g.mulai_detik ?? sg.mulai_detik ?? 0, selesai: g.selesai_detik ?? sg.selesai_detik ?? 0};
+}
+function catatanBobot(a, g) {  // bobot dinormalisasi per segmen: selalu ada frame 1,00, juga di segmen yang asli
+  const sk = gcSkor(a, g), sg = a.hasil.find(r => r.segmen === g.segmen && r.orang === g.orang);
+  return (sk < ambBawah(a) ? `<div class="catatan-bobot">${Ln(`Segmen ini dinilai asli (skor ${sk.toFixed(3)} di bawah ambang ${a.ambang_rendah != null ? "Youden " : ""}${ambBawah(a).toFixed(3)}). Bobot relatif selalu memberi satu frame nilai 1,00 di setiap segmen, jadi bobot di sini hanya menunjukkan frame yang paling diperhatikan model, bukan tanda manipulasi.`,
+      `This segment is judged real (score ${sk.toFixed(3)} below the ${a.ambang_rendah != null ? "Youden " : ""}threshold ${ambBawah(a).toFixed(3)}). Relative weights always give one frame a value of 1.00 in every segment, so the weights here only show the frame the model attended to most, not a sign of manipulation.`)}</div>` : "")
+    + (sg && sg.dipisah && sg.dipisah.length ? `<div class="catatan-bobot">${Ln(`Urutan wajah di segmen ini dipotong karena ${h(sg.dipisah.join(" dan "))}; model hanya membaca bagian yang ditampilkan.`, `The face sequence in this segment was split because of ${h(sg.dipisah.map(TR).join(" and "))}; the model only reads the part shown.`)}</div>` : "");
+}
+function gcSkor(a, g) {  // skor segmen yang sama dengan titik di garis waktu
+  if (g.skor_segmen != null) return g.skor_segmen;
+  const r = a.hasil.find(r => r.segmen === g.segmen && r.orang === g.orang);
+  return r && r.skor != null ? r.skor : g.skor;
+}
+function garisMini(a, g) {  // garis waktu kecil: posisi segmen ini di antara semua temuan Grad-CAM
+  const dur = Math.max(...a.segmen.map(s => s.selesai_detik), 1), W = 1000, x = t => W * t / dur, w0 = gcWaktu(a, g);
+  return `<svg viewBox="0 0 ${W} 22" preserveAspectRatio="none" style="width:100%;height:22px;display:block;margin:4px 0 8px">
+    <rect x="0" y="8" width="${W}" height="6" fill="#2a2f39"/>
+    ${a.gradcam.map(q => { const t = gcWaktu(a, q); return `<rect x="${x(t.mulai)}" y="8" width="${Math.max(2, x(t.selesai) - x(t.mulai))}" height="6" fill="${warnaSkor(gcSkor(a, q), a)}" opacity=".45"/>`; }).join("")}
+    <rect x="${x(w0.mulai)}" y="2" width="${Math.max(3, x(w0.selesai) - x(w0.mulai))}" height="18" fill="none" stroke="#fff" stroke-width="3"/></svg>`;
+}
+function wktTepat(d) { d = +d || 0; const j = Math.floor(d / 3600), m = Math.floor(d % 3600 / 60), s = d - j * 3600 - m * 60;
+  return (j ? String(j).padStart(2, "0") + ":" : "") + String(m).padStart(2, "0") + ":" + s.toFixed(2).padStart(5, "0"); }
+function grafikWaktu(a, pilih, interaktif) {
+  const W = 1000, H = 240, L = 46, R = 14, T = 14, B = 30, w = W - L - R, hh = H - T - B;
+  const dur = Math.max(...a.segmen.map(s => s.selesai_detik), 1);
+  const x = t => L + w * t / dur, y = v => T + hh * (1 - v);
+  let s = `<svg class="waktu" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><rect x="${L}" y="${T}" width="${w}" height="${hh}" fill="#181b21" stroke="#343a46"/>`;
+  for (const v of [0, .25, .5, .75, 1]) s += `<line x1="${L}" x2="${L + w}" y1="${y(v)}" y2="${y(v)}" stroke="#2a2f39"/><text x="${L - 6}" y="${y(v) + 4}" fill="#8c95a4" font-size="11" text-anchor="end">${v.toFixed(2)}</text>`;
+  const st = Math.max(1, Math.round(dur / 10));
+  for (let t = 0; t <= dur; t += st) s += `<text x="${x(t)}" y="${H - 10}" fill="#8c95a4" font-size="11" text-anchor="middle">${jam(t)}</text>`;
+  if (interaktif) s += `<rect class="area-klik" x="${L}" y="${T}" width="${w}" height="${hh}" fill="transparent" data-l="${L}" data-w="${w}" data-dur="${dur}"/>`;
+  { const sg = a.segmen.find(q => q.no === pilih); s += `<rect id="sorotSeg" pointer-events="none" x="${sg ? x(sg.mulai_detik) : 0}" y="${T}" width="${sg ? x(sg.selesai_detik) - x(sg.mulai_detik) : 0}" height="${hh}" fill="#3d8bfd22"/>`; }
+  s += `<line x1="${L}" x2="${L + w}" y1="${y(a.ambang)}" y2="${y(a.ambang)}" stroke="#e5484d" stroke-dasharray="6 5"/><text x="${L + w - 4}" y="${y(a.ambang) - 5}" fill="#e5484d" font-size="11" text-anchor="end">${a.ambang_rendah != null ? Ln("batas toleransi", "tolerance limit") : Ln("ambang", "threshold")} ${a.ambang.toFixed(3)}</text>`;
+  if (a.ambang_rendah != null) s += `<line x1="${L}" x2="${L + w}" y1="${y(a.ambang_rendah)}" y2="${y(a.ambang_rendah)}" stroke="#f0a020" stroke-dasharray="3 4"/><text x="${L + w - 4}" y="${y(a.ambang_rendah) + 13}" fill="#f0a020" font-size="11" text-anchor="end">${Ln("ambang Youden", "Youden threshold")} ${a.ambang_rendah.toFixed(3)}</text>`;
+  a.ringkasan_orang.forEach((o, i) => {
+    const c = WARNA_ORANG[i % 5];
+    const pts = a.hasil.filter(r => r.orang === o.orang && r.skor !== null).sort((p, q) => p.mulai_detik - q.mulai_detik);
+    if (pts.length > 1) s += `<polyline fill="none" stroke="${c}" stroke-width="1.6" points="${pts.map(r => `${x((r.mulai_detik + r.selesai_detik) / 2)},${y(r.skor)}`).join(" ")}"/>`;
+    for (const r of pts) {
+      const adaGc = (a.gradcam || []).some(g => g.segmen === r.segmen && g.orang === o.orang), cx = x((r.mulai_detik + r.selesai_detik) / 2);
+      s += `<line x1="${x(r.mulai_detik)}" x2="${x(r.selesai_detik)}" y1="${y(r.skor)}" y2="${y(r.skor)}" stroke="${c}" stroke-width="4" opacity=".35"/>`
+        + (adaGc ? `<circle cx="${cx}" cy="${y(r.skor)}" r="9" fill="none" stroke="#fff" stroke-width="1.6" pointer-events="none"/><text x="${cx}" y="${y(r.skor) - 13}" fill="#fff" font-size="10.5" text-anchor="middle" pointer-events="none">S${r.segmen}</text>` : "")
+        + `<circle class="titik-seg" data-seg="${r.segmen}" cx="${cx}" cy="${y(r.skor)}" r="5" fill="${c}"><title>S${r.segmen} ${o.orang}: ${r.skor.toFixed(3)}${adaGc ? Ln(" · ada Grad-CAM", " · has Grad-CAM") : ""}</title></circle>`;
+    }
+    s += `<rect x="${L + 10 + i * 70}" y="${T + 8}" width="11" height="11" fill="${c}"/><text x="${L + 26 + i * 70}" y="${T + 18}" fill="#d8dde6" font-size="12">${h(o.orang)}</text>`;
+  });
+  if (interaktif) s += `<line id="playhead" pointer-events="none" x1="${L}" x2="${L}" y1="${T}" y2="${T + hh}" stroke="#fff" stroke-width="1.5"/><text id="playheadT" pointer-events="none" x="${L + 4}" y="${T + hh - 4}" fill="#fff" font-size="11">00:00.00</text>`;
+  return s + "</svg>";
+}
+function tabWaktu(hal, b) {
+  const a = an(b);
+  if (!a) return belum(hal);
+  if (!S.segmen) S.segmen = a.ringkasan_orang[0]?.segmen_tertinggi || a.segmen[0]?.no;
+  const dur = Math.max(...a.segmen.map(s => s.selesai_detik), 1);
+  const bisaPutar = !!b.pratinjau || !b.perlu_pratinjau;
+  hal.innerHTML = `<div class="halaman">
+    <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:start">
+      <div><video id="vidW" src="${f(b.pratinjau ? b.pratinjau.file : b.salinan.file)}" controls preload="metadata" style="width:100%;max-height:40vh;background:#000;border:1px solid var(--garis)"></video>
+        <div class="redup" style="font-size:11.5px;margin-top:4px">${b.pratinjau ? Ln("Memutar video pratinjau H.264 (waktu sama dengan salinan kerja). ", "Playing the H.264 preview video (same timing as the working copy). ") : ""}${bisaPutar ? "" : Ln("<b>Kodek video ini tidak bisa diputar</b>: buat video pratinjau di tab Pemutar video. ", "<b>This video codec cannot be played</b>: create a preview video in the Video player tab. ")}${Ln("Waktu video", "Video time")}: <b id="wkW" class="mono">00:00.00</b></div></div>
+      <div class="kartu" id="frameAktif" style="margin:0"></div>
+    </div>
+    <div style="margin-top:8px">${grafikWaktu(a, S.segmen, true)}</div>
+    <div class="redup" style="font-size:11.5px;margin:4px 0 8px">${Ln("Klik di mana saja pada grafik untuk memutar dari detik itu; klik titik untuk memilih segmen. Garis putih tegak = posisi video saat ini. Titik berlingkaran + S<i>n</i> = segmen yang punya Grad-CAM. Saat video berjalan, frame Grad-CAM pada detik yang sama disorot dan ditampilkan di kanan atas.", "Click anywhere on the chart to play from that second; click a point to select a segment. The vertical white line = current video position. Circled points + S<i>n</i> = segments with Grad-CAM. While the video plays, the Grad-CAM frame at the same second is highlighted and shown at the top right.")}</div>
+    <div id="panelSeg"></div></div>`;
+  const vid = $("#vidW"), svg = $("svg.waktu", hal), ph = $("#playhead"), phT = $("#playheadT"), area = $(".area-klik", hal);
+  const L = +area.dataset.l, W = +area.dataset.w, xT = t => L + W * Math.min(t, dur) / dur;
+  const gcDi = no => (a.gradcam || []).filter(g => g.segmen === no);
+  let aktif = null;
+
+  const tampilFrame = (g, d) => {
+    const el = $("#frameAktif");
+    if (!g || !d) { el.innerHTML = `<h3>${Ln("Frame Grad-CAM", "Grad-CAM frame")}</h3><div class="redup">${gcDi(S.segmen).length ? Ln("Analisis ini versi lama (tanpa waktu dan bobot per frame): analisis ulang bukti ini untuk Grad-CAM interaktif.", "This analysis is from an older version (no per-frame time and weight): re-analyze this evidence for interactive Grad-CAM.") : Ln("Segmen ini tidak punya Grad-CAM (skor di bawah ambang). Putar video atau pilih segmen berlingkaran S<i>n</i>.", "This segment has no Grad-CAM (score below the threshold). Play the video or select a circled segment S<i>n</i>.")}</div>`; return; }
+    el.innerHTML = `<h3>S${g.segmen} · ${h(g.orang)} · ${wktTepat(d.detik)} (frame ${d.frame})</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><img class="gambar-lebar" src="${f(d.file_wajah)}"><img class="gambar-lebar" src="${f(d.file_cam)}"></div>
+      <table class="kv" style="margin-top:6px"><tr><th>${Ln("Waktu di video", "Time in video")}</th><td><b class="mono">${wktTepat(d.detik)}</b> (frame ${d.frame})</td></tr>
+      <tr><th>${Ln("Bobot relatif di segmen", "Relative weight in segment")}</th><td><b>${d.bobot.toFixed(2)}</b> ${Ln("(1,00 = frame yang paling diperhatikan model di segmen ini) · kontribusi", "(1.00 = the frame the model attended to most in this segment) · contribution")} ${d.kontribusi_persen.toFixed(1)}%${gcSkor(a, g) < ambBawah(a) ? `<br><span class="redup">${Ln("Segmen ini dinilai asli (skor di bawah ambang), jadi bobot ini bukan tanda manipulasi.", "This segment is judged real (score below the threshold), so this weight is not a sign of manipulation.")}</span>` : ""}</td></tr>
+      <tr><th>${Ln("Skor segmen", "Segment score")}</th><td style="color:${warnaSkor(gcSkor(a, g), a)}"><b>${gcSkor(a, g).toFixed(3)}</b> (${Ln(`ambang ${teksAmbang(a)}; nilai titik S${g.segmen} di garis waktu`, `thresholds ${teksAmbang(a)}; value of point S${g.segmen} on the timeline`)})</td></tr></table>`;
+  };
+  const sorotFrame = t => {
+    let pilih = null;
+    gcDi(S.segmen).forEach((g, gi) => (g.frame_detail || []).forEach((d, k) => {
+      if (d.detik <= t + 1e-3 && (!pilih || d.detik >= pilih.d.detik)) pilih = {gi, k, g, d};
+    }));
+    if (!pilih) { const gs = gcDi(S.segmen), g0 = gs.find(g => g.frame_detail?.length); if (g0) pilih = {gi: gs.indexOf(g0), k: 0, g: g0, d: g0.frame_detail[0]}; }
+    const kunci = pilih ? pilih.gi + ":" + pilih.k : "-";
+    if (kunci === aktif) return;
+    aktif = kunci;
+    $$(".gcf", hal).forEach(n => n.classList.toggle("aktif", n.dataset.kunci === kunci));
+    const n = pilih && $(`.gcf[data-kunci="${kunci}"]`, hal); if (n) n.scrollIntoView({block: "nearest", inline: "nearest"});
+    tampilFrame(pilih?.g, pilih?.d);
+  };
+  const grafikBobot = g => {
+    // sumbu waktu = jendela frame yang benar-benar dibaca model (20 frame berurutan hanya ~0,8 dtk dari segmen 10 dtk)
+    const sg = a.segmen.find(q => q.no === g.segmen), ds = (g.frame_detail || []).map(d => d.detik);
+    const lo = Math.min(...ds), hi = Math.max(...ds), pad = Math.max(0.04, (hi - lo) * 0.04);
+    const t0 = Math.max(sg.mulai_detik, lo - pad), t1 = Math.max(Math.min(sg.selesai_detik, hi + pad), t0 + 0.01), Wb = 1000, Hb = 70;
+    const xb = t => 6 + (Wb - 12) * (t - t0) / (t1 - t0);
+    return `<svg class="bobotSeg" data-t0="${t0}" data-t1="${t1}" viewBox="0 0 ${Wb} ${Hb}" preserveAspectRatio="none" style="width:100%;height:70px;display:block;background:#181b21;border:1px solid #343a46;cursor:crosshair">
+      ${(g.frame_detail || []).map(d => `<rect x="${xb(d.detik) - 9}" y="${Hb - 14 - (Hb - 22) * d.bobot}" width="18" height="${(Hb - 22) * d.bobot}" fill="${gcSkor(a, g) >= ambBawah(a) ? "#e5484d" : "#6b7280"}" opacity=".8"><title>${wktTepat(d.detik)} · ${Ln("bobot relatif", "relative weight")} ${d.bobot.toFixed(2)}</title></rect>`).join("")}
+      <text x="6" y="${Hb - 3}" fill="#8c95a4" font-size="10">${wktTepat(t0)}</text><text x="${Wb - 6}" y="${Hb - 3}" fill="#8c95a4" font-size="10" text-anchor="end">${wktTepat(t1)}</text>
+      <text x="6" y="11" fill="#8c95a4" font-size="10">${Ln(`bobot relatif Grad-CAM per frame · jendela ${ds.length} frame yang dibaca model ${wktTepat(lo)}–${wktTepat(hi)} di dalam segmen ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)} (klik untuk memutar dari detik itu)`, `relative Grad-CAM weight per frame · window of ${ds.length} frames read by the model ${wktTepat(lo)}–${wktTepat(hi)} within segment ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)} (click to play from that second)`)}</text>
+      <line class="phBobot" x1="0" x2="0" y1="0" y2="${Hb}" stroke="#fff" stroke-width="2" opacity="0"/></svg>`;
+  };
+  let perbarui;
+  const renderSeg = () => {
+    const sg = a.segmen.find(q => q.no === S.segmen), rs = a.hasil.filter(r => r.segmen === S.segmen), gs = gcDi(S.segmen);
+    const sr = $("#sorotSeg"); if (sr && sg) { sr.setAttribute("x", xT(sg.mulai_detik)); sr.setAttribute("width", xT(sg.selesai_detik) - xT(sg.mulai_detik)); }
+    aktif = null;
+    $("#panelSeg").innerHTML = !sg ? "" : `${gs.length ? gs.map((g, gi) => `<div class="kartu"><h3>Grad-CAM S${g.segmen} · ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)} · ${h(g.orang)} · ${Ln("skor segmen", "segment score")} <span style="color:${warnaSkor(gcSkor(a, g), a)}">${gcSkor(a, g).toFixed(3)}</span> (${Ln("ambang", "thresholds")} ${teksAmbang(a)}) · ${h(TR(g.alasan || ""))}${g.model && a.gabungan ? ` · model ${h(g.model)}` : ""}</h3>
+        ${catatanBobot(a, g)}${g.frame_detail?.length ? grafikBobot(g) + `<div class="gcstrip" style="margin-top:6px">${g.frame_detail.map((d, k) => `<div class="gcf ${gcSkor(a, g) < ambBawah(a) ? "bawah" : ""}" data-kunci="${gi}:${k}" data-t="${d.detik}" title="frame ${d.frame} · ${Ln("klik untuk memutar dari sini", "click to play from here")}">
+            <img src="${f(d.file_cam)}" loading="lazy"><div class="wk">${wktTepat(d.detik)}</div><div class="bt"><b style="width:${(d.bobot * 100).toFixed(0)}%"></b></div><div class="bb">${Ln("bobot relatif", "relative weight")} ${d.bobot.toFixed(2)}</div></div>`).join("")}</div>`
+          : `<div class="temuan">${Ln("Analisis ini dibuat dengan versi lama (tanpa waktu dan bobot per frame). Analisis ulang bukti ini untuk Grad-CAM interaktif.", "This analysis was made with an older version (no per-frame time and weight). Re-analyze this evidence for interactive Grad-CAM.")}</div><img class="gambar-lebar" src="${f(g.file)}">`}</div>`).join("")
+        : `<div class="kartu"><div class="redup">${Ln("Segmen", "Segment")} ${sg.no} (${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)}): ${Ln("tidak ada Grad-CAM", "no Grad-CAM")}${rs.some(r => r.skor !== null && r.skor >= ambBawah(a)) ? Ln(" (melebihi batas jumlah gambar)", " (over the image limit)") : Ln(" (skor di bawah ambang)", " (score below the threshold)")}.</div></div>`}
+      <div class="kolom2"><div class="kartu"><h3>${Ln("Segmen", "Segment")} ${sg.no} · ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)} (frame ${sg.frame_awal}–${sg.frame_akhir})</h3>
+      ${sg.frame_kunci ? `<img class="gambar-lebar" src="${f(sg.frame_kunci)}">` : `<div class="redup">${Ln("Tidak ada wajah terdeteksi di segmen ini.", "No face detected in this segment.")}</div>`}</div>
+      <div class="kartu"><h3>${Ln("Orang di segmen ini", "People in this segment")}</h3>${rs.length ? `<table class="grid"><thead><tr><th>${Ln("Orang", "Person")}</th><th>${Ln("Wajah", "Faces")}</th><th>${Ln("Lebar", "Width")}</th><th>${Ln("Prob. deteksi", "Detection prob.")}</th><th>${Ln("Skor", "Score")}</th>${a.gabungan ? `<th>${Ln("Skor mentah per model", "Raw score per model")}</th>` : ""}</tr></thead><tbody>` +
+        rs.map(r => `<tr><td>${h(r.orang)}</td><td>${r.jumlah_wajah}</td><td>${r.lebar_wajah_rata} px</td><td>${r.prob_deteksi_rata}</td>
+        <td style="color:${warnaSkor(r.skor, a)}">${r.skor === null ? Ln("kurang frame", "too few frames") : r.skor.toFixed(3)}${r.dipisah && r.dipisah.length ? ` <span class="redup" title="${Ln("urutan wajah dipotong", "face sequence split")}">(${Ln("dipotong", "split")}: ${h(r.dipisah.map(TR).join(", "))})</span>` : ""}</td>${a.gabungan ? `<td style="font-size:11.5px">${skorModel(r.skor_model, a)}</td>` : ""}</tr>`).join("") + "</tbody></table>" : `<div class="redup">-</div>`}
+        <div style="margin-top:10px"><button class="tombol" id="keWajah">${Ln("Lihat wajah segmen ini", "View faces in this segment")}</button></div></div></div>`;
+    const kw = $("#keWajah"); if (kw) kw.onclick = () => { S.tab = "wajah"; renderBawah(); };
+    $$(".gcf", hal).forEach(n => n.onclick = () => { vid.pause(); vid.currentTime = +n.dataset.t + 0.001; perbarui(+n.dataset.t); });
+    $$("svg.bobotSeg", hal).forEach(sv => sv.onclick = e => {
+      const r = sv.getBoundingClientRect(), t0 = +sv.dataset.t0, t1 = +sv.dataset.t1;
+      const t = t0 + (t1 - t0) * Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 1000 - 6) / 988));
+      vid.currentTime = t; perbarui(t);
+    });
+  };
+  perbarui = t => {
+    ph.setAttribute("x1", xT(t)); ph.setAttribute("x2", xT(t)); phT.setAttribute("x", Math.min(xT(t) + 4, L + W - 60)); phT.textContent = wktTepat(t);
+    $("#wkW").textContent = wktTepat(t);
+    const sg = a.segmen.find(q => t >= q.mulai_detik && t < q.selesai_detik);
+    if (sg && sg.no !== S.segmen) { S.segmen = sg.no; renderSeg(); }
+    $$("svg.bobotSeg", hal).forEach(sv => { const t0 = +sv.dataset.t0, t1 = +sv.dataset.t1, ln = $(".phBobot", sv), ada = t >= t0 && t <= t1;
+      ln.setAttribute("opacity", ada ? 1 : 0); if (ada) { const xv = 6 + 988 * (t - t0) / (t1 - t0); ln.setAttribute("x1", xv); ln.setAttribute("x2", xv); } });
+    sorotFrame(t);
+  };
+  vid.addEventListener("timeupdate", () => perbarui(vid.currentTime));
+  vid.addEventListener("seeked", () => perbarui(vid.currentTime));
+  area.onclick = e => { const r = svg.getBoundingClientRect(), xv = (e.clientX - r.left) / r.width * 1000, t = Math.max(0, Math.min(dur, (xv - L) / W * dur));
+    vid.currentTime = t; perbarui(t); };
+  $$("[data-seg]", hal).forEach(c => c.onclick = () => { const sg = a.segmen.find(q => q.no === +c.dataset.seg); S.segmen = sg.no; renderSeg(); vid.currentTime = sg.mulai_detik; perbarui(sg.mulai_detik); });
+  renderSeg();
+  const t0 = S.putarDari != null ? S.putarDari : (a.segmen.find(q => q.no === S.segmen)?.mulai_detik || 0);
+  S.putarDari = null;
+  vid.addEventListener("loadedmetadata", () => { vid.currentTime = t0; }, {once: true});
+  perbarui(t0);
+}
+function tabWajah(hal, b) {
+  const a = an(b);
+  if (!a) return belum(hal);
+  const seg = [...new Set(a.hasil.map(r => r.segmen))];
+  if (!S.segmen || !seg.includes(S.segmen)) S.segmen = seg[0];
+  const rs = a.hasil.filter(r => r.segmen === S.segmen);
+  hal.innerHTML = `<div class="halaman"><div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><span class="redup">${Ln("Segmen", "Segment")}</span>
+    <select id="selSeg" style="width:320px">${seg.map(n => { const sg = a.segmen.find(q => q.no === n); return `<option value="${n}" ${n === S.segmen ? "selected" : ""}>S${n} · ${jam(sg.mulai_detik)}–${jam(sg.selesai_detik)}</option>`; }).join("")}</select>
+    <span class="redup">${Ln("Wajah hasil MTCNN yang dibaca model (urut waktu)", "MTCNN faces read by the model (in time order)")}${a.gabungan ? Ln("; pada analisis gabungan tiap model punya crop sendiri", "; in an ensemble analysis each model has its own crop") : ""}.</span></div>
+    ${rs.map(r => `<div class="kartu"><h3>${h(r.orang)} · ${r.jumlah_wajah} ${Ln("wajah", "faces")} · ${Ln("skor", "score")} ${r.skor === null ? "-" : r.skor.toFixed(3)}${a.gabungan && r.skor_model ? ` (${skorModel(r.skor_model, a)})` : ""}${r.dilewati_tepi_hitam ? ` · ${r.dilewati_tepi_hitam} ${Ln("dilewati (tepi hitam)", "skipped (black border)")}` : ""}</h3>
+      ${a.gabungan && r.file_per_model ? Object.entries(r.file_per_model).map(([nm, fs]) => `<div class="redup" style="font-size:11.5px;margin:4px 0">${h(nm)}${(a.model.anggota || []).find(x => x.nama === nm) ? " · crop " + h(a.model.anggota.find(x => x.nama === nm).crop) : ""}</div>
+      <div class="galeri">${fs.map((p, i) => `<img src="${f(p)}" title="frame ${(r.frame_per_model[nm] || [])[i]}" loading="lazy">`).join("")}</div>`).join("")
+      : `<div class="galeri">${r.file.map((p, i) => `<img src="${f(p)}" title="frame ${r.frame[i]}" loading="lazy">`).join("")}</div>`}</div>`).join("") || `<div class="redup">${Ln("Tidak ada wajah.", "No faces.")}</div>`}</div>`;
+  $("#selSeg").onchange = e => { S.segmen = +e.target.value; tabWajah(hal, b); };
+}
+function tabGradcam(hal, b) {
+  const a = an(b);
+  if (!a) return belum(hal);
+  const cak = BHS === "en"
+    ? {lewat_ambang: a.ambang_rendah != null ? "every segment that reaches the Youden threshold, plus the highest-scoring segment of each person" : "every segment above the threshold, plus the highest-scoring segment of each person", tertinggi: "the highest-scoring segments", semua: "every segment"}
+    : {lewat_ambang: a.ambang_rendah != null ? "setiap segmen yang mencapai ambang Youden, ditambah segmen tertinggi tiap orang" : "setiap segmen yang melewati ambang, ditambah segmen tertinggi tiap orang", tertinggi: "segmen dengan skor tertinggi", semua: "setiap segmen"};
+  const urut = [...a.gradcam].sort((p, q) => gcWaktu(a, p).mulai - gcWaktu(a, q).mulai);
+  hal.innerHTML = `<div class="halaman"><div class="redup" style="margin-bottom:10px">${Ln(`Baris atas: wajah yang dibaca model. Baris bawah: Grad-CAM (merah = area yang paling memengaruhi skor fake). Dibuat untuk ${cak[a.gradcam_cakupan] || "segmen dengan skor tertinggi per orang (analisis versi lama)"}. Urut waktu; kotak putih pada garis kecil = posisi segmen di video, warna = skor tiap temuan.`,
+      `Top row: faces read by the model. Bottom row: Grad-CAM (red = areas with the most influence on the fake score). Created for ${cak[a.gradcam_cakupan] || "the highest-scoring segment of each person (older analysis)"}. In time order; the white box on the small bar = segment position in the video, color = score of each finding.`)}</div>${urut.map(g => { const t = gcWaktu(a, g), sk = gcSkor(a, g);
+    return `<div class="kartu"><h3>S${g.segmen} · ${jam(t.mulai)}–${jam(t.selesai)} · ${h(g.orang)} · ${Ln("skor segmen", "segment score")} <span style="color:${warnaSkor(sk, a)}">${sk.toFixed(3)}</span> ${sk >= a.ambang ? Ln("(≥ batas toleransi)", "(≥ tolerance limit)") : sk >= ambBawah(a) ? Ln("(zona pemeriksaan)", "(examination zone)") : Ln("(< ambang, pembanding)", "(< threshold, for comparison)")}${g.model && a.gabungan ? ` · model ${h(g.model)}` : ""}</h3>
+    ${catatanBobot(a, g)}${garisMini(a, g)}<div style="display:flex;gap:8px;margin-bottom:8px"><button class="tombol" data-kewaktu="${g.segmen}">${Ln("Buka di garis waktu interaktif", "Open in the interactive timeline")}</button><button class="tombol" data-putar="${t.mulai}">${Ln("Putar video di", "Play video at")} ${jam(t.mulai)}</button></div>
+    <img class="gambar-lebar" src="${f(g.file)}"></div>`; }).join("") || `<div class="redup">${Ln("Tidak ada Grad-CAM.", "No Grad-CAM.")}</div>`}</div>`;
+  $$("[data-kewaktu]", hal).forEach(n => n.onclick = () => { S.segmen = +n.dataset.kewaktu; const sg = a.segmen.find(q => q.no === S.segmen); S.putarDari = sg ? sg.mulai_detik : null; S.tab = "waktu"; renderBawah(); });
+  $$("[data-putar]", hal).forEach(n => n.onclick = () => { S.putarDari = +n.dataset.putar; S.tab = "pemutar"; renderBawah(); });
+}
+function tabHash(hal, b) {
+  const A = b.asal.hash, C = b.salinan.hash;
+  hal.innerHTML = `<div class="halaman"><div class="kartu"><h3>${Ln("Hash akuisisi", "Acquisition hashes")}</h3><table class="grid"><thead><tr><th>${Ln("Algoritma", "Algorithm")}</th><th>${Ln("File asal", "Source file")}</th><th>${Ln("Salinan kerja", "Working copy")}</th><th>Status</th></tr></thead><tbody>
+    ${["md5","sha1","sha256"].map(k => `<tr><td>${k.toUpperCase()}</td><td class="mono">${A[k]}</td><td class="mono">${C[k]}</td><td style="color:${A[k] === C[k] ? "var(--hijau)" : "var(--merah)"}">${A[k] === C[k] ? Ln("identik", "identical") : Ln("BERBEDA", "DIFFERENT")}</td></tr>`).join("")}
+    </tbody></table></div><div class="kartu"><h3>${Ln("Akuisisi", "Acquisition")}</h3><table class="kv">
+    <tr><th>${Ln("Lokasi asal", "Source location")}</th><td class="mono">${h(b.asal.path)}</td></tr><tr><th>${Ln("Ukuran", "Size")}</th><td>${ukuran(b.asal.ukuran_byte)} (${(+b.asal.ukuran_byte).toLocaleString(LOKAL())} byte)</td></tr>
+    <tr><th>${Ln("Waktu ubah / buat (asal)", "Modified / created time (source)")}</th><td>${h(b.asal.diubah)} / ${h(b.asal.dibuat)}</td></tr>
+    <tr><th>${Ln("Akuisisi", "Acquisition")}</th><td>${h(b.akuisisi_mulai_wib)} ${Ln("s.d.", "to")} ${h(b.akuisisi_selesai_wib)}</td></tr><tr><th>Operator</th><td>${h(b.operator)}@${h(b.komputer)}</td></tr>
+    <tr><th>${Ln("Salinan kerja (read-only)", "Working copy (read-only)")}</th><td class="mono">${h(b.salinan.file)}</td></tr>
+    ${b.file_asli ? `<tr><th>${Ln("Salinan file asli (original files)", "Original file copy (original files)")}</th><td class="mono">${h(b.file_asli.file)} <span style="color:${b.file_asli.hash.sha256 === A.sha256 ? "var(--hijau)" : "var(--merah)"}">(${b.file_asli.hash.sha256 === A.sha256 ? Ln("identik", "identical") : Ln("BERBEDA", "DIFFERENT")})</span></td></tr>` : ""}<tr><th>${Ln("Keterangan", "Notes")}</th><td>${h(b.keterangan || "-")}</td></tr></table>
+    <div style="margin-top:10px;display:flex;gap:8px"><button class="tombol utama" data-aksi="integritas">${Ln("Hitung ulang hash sekarang", "Recompute hashes now")}</button>
+    <button class="tombol" data-bukafile="${h(b.salinan.file)}">${Ln("Buka salinan", "Open copy")}</button></div><div id="hasilInteg" style="margin-top:10px"></div></div></div>`;
+  ikatAksi(hal); ikatBukaFile(hal);
+}
+function tabMetadata(hal, b) {
+  const m = b.metadata;
+  hal.innerHTML = `<div class="halaman"><div class="kolom2"><div class="kartu"><h3>${Ln("Properti video", "Video properties")}</h3><table class="kv">
+    <tr><th>${Ln("Resolusi", "Resolution")}</th><td>${m.lebar} × ${m.tinggi}</td></tr><tr><th>Frame rate</th><td>${m.fps} fps</td></tr><tr><th>${Ln("Jumlah frame", "Frame count")}</th><td>${(+m.jumlah_frame).toLocaleString(LOKAL())}</td></tr>
+    <tr><th>${Ln("Durasi", "Duration")}</th><td>${jam(m.durasi_detik)} (${m.durasi_detik} ${Ln("dtk", "s")})</td></tr><tr><th>${Ln("Kodek video", "Video codec")}</th><td>${h(m.kodek_video)}</td></tr><tr><th>Audio</th><td>${h(m.audio || Ln("tidak ada", "none"))}</td></tr>
+    <tr><th>Bitrate</th><td>${m.bitrate_kbps ? m.bitrate_kbps + " kb/s" : "-"}</td></tr></table></div>
+    <div class="kartu"><h3>${Ln("Tag kontainer", "Container tags")}</h3><table class="kv">${Object.entries(m.tag).map(([k, v]) => `<tr><th>${h(k)}</th><td>${h(v)}</td></tr>`).join("") || `<tr><td class=redup>${Ln("tidak ada tag", "no tags")}</td></tr>`}</table></div></div>
+    <div class="kartu"><h3>${Ln("Temuan metadata", "Metadata findings")}</h3>${m.temuan.map(t => `<div class="temuan ${t.tingkat}">${h(TR(t.teks))}</div>`).join("") || `<div class="redup">${Ln("Tidak ada temuan.", "No findings.")}</div>`}
+    <div class="redup" style="font-size:11.5px;margin-top:6px">${Ln("Temuan metadata bersifat pendukung dan tidak menentukan kesimpulan deepfake.", "Metadata findings are supporting and do not determine the deepfake verdict.")}</div></div>
+    <div class="kartu"><h3>${Ln("Keluaran FFmpeg", "FFmpeg output")}</h3><pre class="mentah">${h(m.info_ffmpeg)}</pre></div></div>`;
+}
+
+/* ------------------------------------------------------------ dialog */
+function dialog(judul, badan, tombol) {
+  const t = $("#tirai");
+  t.innerHTML = `<div class="dialog"><div class="kepala"><span>${judul}</span><span style="cursor:pointer" id="dTutup">&times;</span></div><div class="badan">${badan}</div>
+    <div class="kaki">${tombol || ""}<button class="tombol" id="dBatal">${Ln("Batal", "Cancel")}</button></div></div>`;
+  t.classList.add("buka");
+  const tutup = () => t.classList.remove("buka");
+  $("#dTutup").onclick = $("#dBatal").onclick = tutup;
+  const pertama = $("input,select,textarea", t); if (pertama) setTimeout(() => pertama.focus(), 30);
+  return tutup;
+}
+const AKSI = {
+  kasusBaru() {
+    const tutup = dialog(Ln("Kasus baru", "New case"), `<div class="baris2"><label>${Ln("Nomor kasus *", "Case number *")}<input id="kNo" placeholder="${Ln("mis.", "e.g.")} 012/LAB/X/2026"></label>
+      <label>${Ln("Pemeriksa *", "Examiner *")}<input id="kPem" value="${h(S.info?.pengguna || "")}"></label></div><label>${Ln("Judul / perihal", "Title / subject")}<input id="kJud" placeholder="${Ln("mis. Video viral pejabat X", "e.g. Viral video of official X")}"></label>
+      <label>${Ln("Instansi", "Institution")}<input id="kIns"></label><label>${Ln("Keterangan", "Notes")}<textarea id="kKet" rows="3"></textarea></label>
+      <div class="redup" style="font-size:11.5px">${Ln("Data kasus disimpan di data/kasus_forensik/ dan setiap kegiatan dicatat di log berantai kasus.", "Case data is stored in data/kasus_forensik/ and every activity is recorded in the case's chained log.")}</div>`,
+      `<button class="tombol utama" id="kOk">${Ln("Buat kasus", "Create case")}</button>`);
+    $("#kOk").onclick = async () => {
+      try { const k = await api("kasus_baru", {nomor:$("#kNo").value, judul:$("#kJud").value, pemeriksa:$("#kPem").value, instansi:$("#kIns").value, keterangan:$("#kKet").value});
+        tutup(); notif(Ln(`Kasus ${k.nomor} dibuat`, `Case ${k.nomor} created`)); await muatInfo(); await bukaKasusId(k.id); }
+      catch (e) { notif(e.message, true); }
+    };
+  },
+  async bukaKasus() {
+    await muatInfo();
+    const K = S.info.kasus;
+    let pilih = K[0]?.id;
+    const tutup = dialog(Ln("Buka kasus", "Open case"), K.length ? `<div class="daftar-pilih">${K.map((k, i) => `<div data-k="${h(k.id)}" class="${i ? "" : "pilih"}">
+      <b>${h(k.nomor)}</b> · ${h(k.judul || "")}<br><span class="redup">${h(k.pemeriksa)} · ${h(k.dibuat_wib)} · ${k.jumlah_bukti} ${Ln("bukti", "evidence items")}</span></div>`).join("")}</div>`
+      : `<div class="redup">${Ln("Belum ada kasus.", "No cases yet.")}</div>`, K.length ? `<button class="tombol utama" id="bOk">${Ln("Buka", "Open")}</button>` : "");
+    $$("[data-k]").forEach(d => { d.onclick = () => { $$("[data-k]").forEach(x => x.classList.remove("pilih")); d.classList.add("pilih"); pilih = d.dataset.k; };
+      d.ondblclick = () => { tutup(); bukaKasusId(d.dataset.k); }; });
+    if (K.length) $("#bOk").onclick = () => { tutup(); bukaKasusId(pilih); };
+  },
+  tutupKasus() { S.kasus = S.data = S.bb = null; $("#stKasus").textContent = Ln("Tidak ada kasus terbuka", "No case open"); document.title = Ln("Forensik Deepfake", "Deepfake Forensics"); segarkan(); },
+  tambahBukti() {
+    const tutup = dialog(Ln("Tambah barang bukti (akuisisi)", "Add evidence (acquisition)"), `<label>${Ln("File video (satu path per baris)", "Video files (one path per line)")}<textarea id="tFile" rows="4" class="mono" placeholder="D:\\bukti\\video.mp4"></textarea></label>
+      <div><button class="tombol" id="tCari">${Ln("Pilih file...", "Choose files...")}</button></div>
+      <label>${Ln("Keterangan (asal perolehan, penyerah, dsb.)", "Notes (source, submitted by, etc.)")}<textarea id="tKet" rows="2"></textarea></label>
+      <div class="redup" style="font-size:11.5px">${Ln("Akuisisi: hash MD5/SHA-1/SHA-256 file asal → salin apa adanya ke folder <b>original files</b> kasus dan sebagai salinan kerja (keduanya read-only) → hash ulang kedua salinan → metadata. File asal tidak diubah.", "Acquisition: MD5/SHA-1/SHA-256 hashes of the source file → copied as-is to the case <b>original files</b> folder and as a working copy (both read-only) → both copies hashed again → metadata. The source file is not changed.")}
+      ${Ln("Format", "Formats")}: ${h((S.info?.ekstensi || []).join(" "))}</div>`, `<button class="tombol utama" id="tOk">${Ln("Akuisisi", "Acquire")}</button>`);
+    $("#tCari").onclick = async () => { try { const p = await api("pilih_file"); if (p.length) $("#tFile").value = ($("#tFile").value.trim() + "\n" + p.join("\n")).trim(); } catch (e) { notif(e.message, true); } };
+    $("#tOk").onclick = async () => {
+      const files = $("#tFile").value.split(/\r?\n/).map(s => s.trim().replace(/^"|"$/g, "")).filter(Boolean);
+      try { const j = await api("tambah_bukti", {kasus:S.kasus, files, keterangan:$("#tKet").value}); tutup(); pantau(j); }
+      catch (e) { notif(e.message, true); }
+    };
+  },
+  analisis() {
+    if (!S.info.model.length) return notif(Ln("Belum ada model Xception + LSTM di data/model. Latih model dulu di aplikasi pipeline.", "No Xception + LSTM model in data/model yet. Train a model first in the pipeline application."), true);
+    if (!S.data.bukti.length) return notif(Ln("Tambahkan barang bukti dulu.", "Add evidence first."), true);
+    const target = S.centang.size ? [...S.centang] : (S.bb ? [S.bb] : []);
+    const p = S.info.pengaturan, dipilih = $("#pilihModel").value;
+    const tutup = dialog(Ln("Analisis deepfake", "Deepfake analysis"), `<label>${Ln("Barang bukti", "Evidence")}<div class="daftar-pilih">${S.data.bukti.map(b => `<div><label style="display:flex;gap:8px;align-items:center;color:var(--teks)">
+      <input type="checkbox" data-a="${b.id}" style="width:auto" ${target.includes(b.id) ? "checked" : ""}> ${b.id} · ${h(b.nama_file)} ${lencana(statusBukti(b))}</label></div>`).join("")}</div></label>
+      <label>${Ln("Model (centang beberapa untuk membandingkan)", "Model (tick several to compare)")}<div class="daftar-pilih">${S.info.model.map(m => `<div><label style="display:flex;gap:8px;align-items:flex-start;color:var(--teks)">
+        <input type="checkbox" data-m="${h(m.folder)}" style="width:auto;margin-top:3px" ${m.folder === dipilih || (dipilih === GAB && S.info.model.indexOf(m) < 2) ? "checked" : ""}>
+        <span><b>${h(m.nama)}</b> · ${Ln("skenario", "scenario")} ${h(m.skenario)} ${h(TR(m.nama_skenario || ""))} · val AUC ${(+m.val_auc).toFixed(3)} · ${Ln("ambang", "threshold")} ${(+m.ambang_val).toFixed(3)}<br>
+        <span class="redup" style="font-size:11.5px">${Ln("Dilatih dengan", "Trained with")} ${h(ATURAN[m.aturan_frame] || m.aturan_frame)}, crop margin ${m.margin} ${m.ukuran}px · ${Object.entries(m.uji).map(([s, u]) => `test ${h(sumberUji(s))} AUC ${(+u.auc).toFixed(3)}`).join(" · ")}
+        ${Object.values(m.auc_per_metode || {}).some(x => Object.keys(x).some(k => k.includes("lipsync"))) ? Ln(" · pernah dilatih/diuji lipsync", " · trained/tested on lip-sync") : ""} · ${h(m.waktu)}</span></span></label></div>`).join("")}</div></label>
+      <label>${Ln("Cara memakai model (bila lebih dari satu dicentang)", "How to use the models (when more than one is ticked)")}<select id="aCara">
+        <option value="terpisah">${Ln("Terpisah: tiap model satu analisis (untuk membandingkan)", "Separate: one analysis per model (for comparison)")}</option>
+        <option value="maks">${Ln("Gabungan, skor tertinggi: fake bila salah satu model yakin (recall naik)", "Ensemble, highest score: fake if any model is confident (higher recall)")}</option>
+        <option value="rata">${Ln("Gabungan, rata-rata: keputusan lebih hati-hati", "Ensemble, mean: more cautious decision")}</option></select></label>
+      <label>${Ln("Aturan pengambilan frame", "Frame sampling rule")}<select id="aAturan">
+        <option value="otomatis">${Ln("Otomatis: sama dengan saat model dilatih (disarankan)", "Automatic: same as in training (recommended)")}</option>
+        <option value="berurutan">${Ln("Baru: 20 frame berurutan 25 fps di tengah segmen", "New: 20 consecutive frames at 25 fps in the middle of the segment")}</option>
+        <option value="merata">${Ln("Lama: 20 frame merata sepanjang segmen", "Old: 20 frames evenly across the segment")}</option></select></label>
+      <div id="aInfo" style="font-size:11.5px"></div>
+      <div class="redup" style="font-size:11.5px">${Ln("Ambang keputusan dari data validasi masing-masing model: <b>ambang Youden</b> dan <b>batas toleransi 5%</b> (batas yang dilewati paling banyak 5% video asli di data validasi). Skor rata-rata ≥ batas toleransi → <b>Terindikasi</b>; dari ambang Youden sampai di bawah batas toleransi, atau ada segmen ≥ batas toleransi → <b>Perlu pemeriksaan lanjutan</b>; di bawah ambang Youden → <b>Tidak terindikasi</b>.", "Decision thresholds from each model's validation data: the <b>Youden threshold</b> and the <b>5% tolerance limit</b> (the limit exceeded by at most 5% of real videos in the validation data). Mean score ≥ tolerance limit → <b>Deepfake indicated</b>; from the Youden threshold up to below the tolerance limit, or any segment ≥ tolerance limit → <b>Further examination required</b>; below the Youden threshold → <b>Not indicated</b>.")}</div>
+      <div class="baris2"><label>${Ln("Durasi segmen (detik)", "Segment length (seconds)")}<input id="aSeg" type="number" min="3" max="60" value="${p.durasi_segmen_detik}"></label></div>
+      <div class="baris2"><label>${Ln("Maks. orang per segmen", "Max people per segment")}<input id="aOrang" type="number" min="1" max="5" value="${p.maks_orang}"></label>
+      <label>${Ln("Maks. segmen (video panjang disampel)", "Max segments (long videos are sampled)")}<input id="aMaks" type="number" min="1" max="1000" value="${p.maks_segmen}"></label></div>
+      <div class="redup" style="font-size:11.5px">${Ln("Setiap kombinasi bukti × model disimpan sebagai analisis tersendiri; bandingkan di tab <b>Perbandingan analisis</b>. MTCNN dengan margin/ukuran crop sesuai model, Xception + LSTM, Grad-CAM pada segmen tertinggi. Hash salinan diverifikasi sebelum analisis.", "Each evidence × model combination is saved as a separate analysis; compare them in the <b>Analysis comparison</b> tab. MTCNN with the model's crop margin/size, Xception + LSTM, Grad-CAM on the highest segments. The copy's hash is verified before analysis.")}</div>`,
+      `<button class="tombol utama" id="aOk">${Ln("Mulai analisis", "Start analysis")}</button>`);
+    const info = () => {
+      const ms = $$("[data-m]").filter(c => c.checked).map(c => S.info.model.find(m => m.folder === c.dataset.m));
+      const at = $("#aAturan").value;
+      const beda = at === "otomatis" ? [] : ms.filter(m => m.aturan_frame !== at);
+      const kd = ms.map(m => { const k = m.ambang_kandidat || {};
+        return `${h(m.nama)}: Youden ${(+(k.youden ?? m.ambang_val)).toFixed(3)}, ${Ln("batas toleransi 5%", "5% tolerance limit")} ${k.fpr5 !== undefined ? (+k.fpr5).toFixed(3) : Ln("belum dihitung (evaluasi ulang model)", "not computed yet (re-evaluate the model)")}`; }).join("<br>");
+      const cara = $("#aCara").value; $("#aCara").disabled = ms.length < 2;
+      $("#aInfo").innerHTML = `<div class="redup">${kd}</div>` + (ms.length > 1 ? (cara === "terpisah"
+          ? `<div class="redup">${Ln(`${ms.length} model dipilih: setiap bukti dianalisis ${ms.length}× (waktu proses ikut berlipat).`, `${ms.length} models selected: each evidence item is analyzed ${ms.length}× (processing time multiplies too).`)}</div>`
+          : `<div class="redup">${Ln(`<b>Gabungan ${ms.length} model (${CARA[cara]})</b>: wajah dideteksi sekali, tiap model membaca crop sesuai profilnya, skor tiap model dipetakan ke skala terpadu menurut ambangnya sendiri (≥ 0,33 = lewat ambang Youden, ≥ 0,67 = lewat batas toleransi), lalu digabung. Hasilnya satu analisis per bukti.`, `<b>Ensemble of ${ms.length} models (${CARA[cara]})</b>: faces are detected once, each model reads the crop of its own profile, each model's score is mapped to a unified scale by its own thresholds (≥ 0.33 = above the Youden threshold, ≥ 0.67 = above the tolerance limit), then combined. The result is one analysis per evidence item.`)}</div>`
+            + (new Set(ms.map(m => m.aturan_frame)).size > 1 ? `<div class="temuan tinggi">${Ln("Aturan frame saat latih berbeda antarmodel; frame diambil menurut aturan model pertama.", "The training frame rules differ between models; frames are taken by the first model's rule.")}</div>` : "")) : "")
+        + (beda.length ? `<div class="temuan tinggi">${beda.map(m => h(m.nama)).join(", ")} ${Ln(`dilatih dengan ${h(ATURAN[beda[0].aturan_frame])}; aturan yang dipilih berbeda, jadi skornya hanya untuk perbandingan.`, `was trained with ${h(ATURAN[beda[0].aturan_frame])}; the selected rule differs, so the score is for comparison only.`)}</div>` : "");
+    };
+    $$("[data-m]").forEach(c => c.onchange = info); $("#aAturan").onchange = info; $("#aCara").onchange = info;
+    if (dipilih === GAB) $("#aCara").value = "maks"; info();
+    $("#aOk").onclick = async () => {
+      const bb = $$("[data-a]").filter(c => c.checked).map(c => c.dataset.a);
+      const ms = $$("[data-m]").filter(c => c.checked).map(c => c.dataset.m);
+      if (!bb.length) return notif(Ln("Pilih minimal satu barang bukti", "Select at least one evidence item"), true);
+      if (!ms.length) return notif(Ln("Pilih minimal satu model", "Select at least one model"), true);
+      const cara = ms.length > 1 ? $("#aCara").value : "terpisah";
+      try { const j = await api("analisis", {kasus:S.kasus, bukti:bb, model:ms, cara, opsi:{ambang:"fpr5", ambang_rendah:"val", aturan_frame:$("#aAturan").value,
+          durasi_segmen_detik:+$("#aSeg").value, maks_orang:+$("#aOrang").value, maks_segmen:+$("#aMaks").value}});
+        $("#pilihModel").value = cara === "terpisah" ? ms[0] : GAB; statusModel(); bb.forEach(x => { delete S.pilihAn[x]; if (S.pilihManual) delete S.pilihManual[x]; }); tutup(); pantau(j); }
+      catch (e) { notif(e.message, true); }
+    };
+  },
+  laporan() {
+    const target = S.centang.size ? [...S.centang] : S.data.bukti.map(b => b.id);
+    const tutup = dialog(Ln("Buat laporan", "Create report"), `<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+      <span>${Ln("Barang bukti yang dimuat", "Evidence to include")}</span><span class="redup" id="lJumlah" style="font-size:11.5px"></span><span style="flex:1"></span>
+      <button class="tombol" id="lSemua" type="button">${Ln("Centang semua", "Tick all")}</button><button class="tombol" id="lKosong" type="button">${Ln("Hapus semua centang", "Untick all")}</button></div>
+      <label><div class="daftar-pilih">${S.data.bukti.map(b => `<div><label style="display:flex;gap:8px;align-items:center;color:var(--teks)">
+      <input type="checkbox" data-l="${b.id}" style="width:auto" ${target.includes(b.id) ? "checked" : ""}> ${b.id} · ${h(b.nama_file)} ${lencana(statusBukti(b))}</label></div>`).join("") || `<div class=redup>${Ln("Belum ada barang bukti", "No evidence yet")}</div>`}</div></label>
+      <div class="redup" style="font-size:11.5px">${Ln("Isi: identitas kasus, ringkasan, akuisisi & hash, metadata, hasil per orang, garis waktu, Grad-CAM, metodologi & keterbatasan, verifikasi rantai bukti, kolom tanda tangan. PDF dicetak lewat Microsoft Edge/Chrome; keduanya dicatat di rantai bukti. Laporan dibuat dalam bahasa yang sedang aktif.", "Contents: case details, summary, acquisition & hashes, metadata, results per person, timeline, Grad-CAM, methodology & limitations, chain of custody verification, signature block. The PDF is printed with Microsoft Edge/Chrome; both are recorded in the chain of custody. The report is written in the active language.")}</div>`, `<button class="tombol utama" id="lOk">${Ln("Buat laporan", "Create report")}</button>`);
+    const hitungL = () => { const n = $$("[data-l]").filter(c => c.checked).length;
+      $("#lJumlah").textContent = Ln(`${n} dari ${S.data.bukti.length} dipilih`, `${n} of ${S.data.bukti.length} selected`); $("#lOk").disabled = n === 0; };
+    $("#lSemua").onclick = () => { $$("[data-l]").forEach(c => { c.checked = true; }); hitungL(); };
+    $("#lKosong").onclick = () => { $$("[data-l]").forEach(c => { c.checked = false; }); hitungL(); };
+    $$("[data-l]").forEach(c => c.onchange = hitungL);
+    hitungL();
+    $("#lOk").onclick = async () => {
+      const bb = $$("[data-l]").filter(c => c.checked).map(c => c.dataset.l);
+      if (!bb.length) return notif(Ln("Pilih minimal satu barang bukti", "Select at least one evidence item"), true);
+      try { const j = await api("laporan", {kasus:S.kasus, bukti:bb, model:$("#pilihModel").value === GAB ? GAB : (S.info.model.find(x => x.folder === $("#pilihModel").value) || {}).nama}); tutup(); pantau(j, hasil => { if (hasil?.pdf || hasil?.html) api("buka", {path:hasil.pdf || hasil.html}).catch(() => {}); }); }
+      catch (e) { notif(e.message, true); }
+    };
+  },
+  lihatLaporan() { S.node = "laporan"; render(); },
+  async integritas() {
+    try { pantau(await api("integritas", {kasus:S.kasus, bukti:S.bb}), r => {
+      notif(`${S.bb}: ${Ln("integritas", "integrity")} ${stF(r.status)}`, r.status !== "COCOK");
+      const el = $("#hasilInteg"); if (el) el.innerHTML = `<div class="temuan ${r.status === "COCOK" ? "" : "tinggi"}">${Ln("Dihitung ulang", "Recomputed")} ${h(r.waktu)}: <b>${stF(r.status)}</b> · SHA-256 ${h(r.hash_sekarang?.sha256 || "-")}</div>`; }); }
+    catch (e) { notif(e.message, true); }
+  },
+  async verifikasi() {
+    try { pantau(await api("verifikasi", {kasus:S.kasus}), v => notif(Ln(`Rantai bukti ${v.rantai_utuh ? "UTUH" : "TIDAK UTUH"}; ${v.file.filter(x => x.status === "COCOK").length}/${v.file.length} file cocok`, `Chain of custody ${v.rantai_utuh ? "INTACT" : "BROKEN"}; ${v.file.filter(x => x.status === "COCOK").length}/${v.file.length} files match`), !(v.rantai_utuh && !v.masalah.length))); }
+    catch (e) { notif(e.message, true); }
+  },
+  tentang() {
+    dialog(Ln("Tentang", "About"), `<div>${Ln("<b>Forensik Deepfake Video</b><br>Pemeriksaan manipulasi wajah pada video memakai model Xception + LSTM hasil pipeline dataset deepfake wajah Indonesia, dengan Grad-CAM.", "<b>Deepfake Video Forensics</b><br>Facial manipulation examination of video with an Xception + LSTM model from the Indonesian face deepfake dataset pipeline, with Grad-CAM.")}</div>
+      <div class="redup">${Ln("Alur mengikuti pipeline: akuisisi + hash → verifikasi integritas → segmen 10 dtk × 20 frame (aturan sesuai model: berurutan 25 fps atau merata) → MTCNN 224×224 → Xception + LSTM → Grad-CAM → laporan → log berantai SHA-256.", "The workflow follows the pipeline: acquisition + hash → integrity verification → 10 s segments × 20 frames (rule as trained: consecutive 25 fps or evenly spaced) → MTCNN 224×224 → Xception + LSTM → Grad-CAM → report → SHA-256 chained log.")}</div>
+      <div class="redup">${h($("#stSistem").textContent)}</div>`);
+  },
+};
+function ikatAksi(el) { $$("[data-aksi]", el).forEach(b => b.onclick = () => { if (b.disabled || b.classList.contains("mati")) return; tutupMenu(); AKSI[b.dataset.aksi](); }); }
+function ikatBukaFile(el) { $$("[data-bukafile]", el).forEach(b => b.onclick = () => api("buka", {path:b.dataset.bukafile}).catch(e => notif(e.message, true))); }
+
+/* ------------------------------------------------------------ pekerjaan */
+function pantau(j, selesai) {
+  const k = $("#konsol"); k.classList.remove("kecil"); $("#konsolToggle").innerHTML = "&#9660;";
+  $("#konsolLog").textContent = ""; let dari = 0;
+  const putar = async () => {
+    let p;
+    try { p = await api("pekerjaan", {id:j.id, dari}); } catch (e) { return setTimeout(putar, 1500); }
+    if (p.log.length) { const L = $("#konsolLog"); L.textContent += p.log.join("\n") + "\n"; L.scrollTop = L.scrollHeight; dari += p.log.length; }
+    $("#konsolJudul").textContent = `${p.judul} · ${STJOB[p.status] || p.status}`;
+    $("#konsolBar").style.width = (p.progres * 100).toFixed(1) + "%";
+    $("#konsolTahap").textContent = p.tahap || "";
+    if (p.status === "selesai" || p.status === "gagal") {
+      if (p.status === "gagal") notif(`${p.judul} ${Ln("gagal", "failed")}: ${p.galat}`, true); else notif(`${p.judul} ${Ln("selesai", "done")}`);
+      if (S.kasus) await bukaKasusId(S.kasus);
+      if (p.status === "selesai" && selesai) selesai(p.hasil);
+      return;
+    }
+    setTimeout(putar, 700);
+  };
+  putar();
+}
+
+/* ------------------------------------------------------------ menu & pintasan */
+function tutupMenu() { $$("#menu .item").forEach(i => i.classList.remove("buka")); }
+$$("#menu .item").forEach(i => i.onclick = e => { const b = i.classList.contains("buka"); tutupMenu(); if (!b && !e.target.closest(".sub")) i.classList.add("buka"); });
+$$("#menu .item").forEach(i => i.onmouseenter = () => { if ($("#menu .item.buka") && !i.classList.contains("buka")) { tutupMenu(); i.classList.add("buka"); } });
+document.addEventListener("click", e => { if (!e.target.closest("#menu")) tutupMenu(); });
+ikatAksi(document);
+$$("#bahasaUI button").forEach(b => b.onclick = e => { e.stopPropagation(); gantiBahasa(b.dataset.bhs); });
+$("#konsolKepala").onclick = () => { const k = $("#konsol"); k.classList.toggle("kecil"); $("#konsolToggle").innerHTML = k.classList.contains("kecil") ? "&#9650;" : "&#9660;"; };
+$("#pilihModel").onchange = async () => { statusModel(); S.pilihManual = {}; await sinkronModel(); render(); };
+document.addEventListener("keydown", e => {
+  if ($("#tirai").classList.contains("buka")) { if (e.key === "Escape") $("#tirai").classList.remove("buka"); return; }
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && k === "n") { e.preventDefault(); AKSI.kasusBaru(); }
+  else if (e.ctrlKey && k === "o") { e.preventDefault(); AKSI.bukaKasus(); }
+  else if (e.ctrlKey && k === "i" && S.kasus) { e.preventDefault(); AKSI.tambahBukti(); }
+  else if (e.ctrlKey && k === "r" && S.kasus) { e.preventDefault(); AKSI.laporan(); }
+  else if (e.key === "F5") { e.preventDefault(); if (S.kasus) AKSI.analisis(); }
+});
+setInterval(() => { $("#stJam").textContent = new Date().toLocaleString(LOKAL(), {timeZone:"Asia/Jakarta", hour12:false}) + " WIB"; }, 1000);
+segarkan().catch(e => notif(e.message, true));
+</script>
+</body>
+</html>

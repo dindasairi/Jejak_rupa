@@ -1,0 +1,15 @@
+# PyTorch dipasang terpisah oleh FORENSIK.bat (CUDA 13.0 bila ada GPU NVIDIA, selain itu versi CPU):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+# MTCNN dipasang tanpa dependensi supaya tidak mengganti versi torch:
+#   pip install facenet-pytorch --no-deps
+# onnxruntime (CPU) atau onnxruntime-gpu[cuda,cudnn] untuk ArcFace juga dipasang oleh FORENSIK.bat.
+numpy
+pandas
+pyyaml
+pillow
+opencv-python
+imageio-ffmpeg       # ffmpeg bawaan Python (tidak perlu pasang ffmpeg terpisah)
+timm                 # backbone Xception
+scikit-learn
+insightface          # ArcFace untuk pencocokan identitas antarsegmen
+pywebview            # jendela desktop; tanpa ini aplikasi dibuka di browser

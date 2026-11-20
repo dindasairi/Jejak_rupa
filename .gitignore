@@ -1,0 +1,21 @@
+# Lingkungan Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data kasus (barang bukti, hasil analisis, log berantai) dan bobot model: jangan diunggah
+data/kasus_forensik/*
+!data/kasus_forensik/.gitkeep
+data/model/*
+!data/model/.gitkeep
+*.pt
+*.pth
+*.onnx
+
+# Lain-lain
+*.log
+.DS_Store
+Thumbs.db
+
+# Pengaturan lokal aplikasi (bahasa tampilan)
+data/pengaturan_aplikasi.json

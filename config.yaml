@@ -1,0 +1,41 @@
+# Konfigurasi aplikasi forensik deepfake (Xception + LSTM + Grad-CAM)
+folder_kerja: data                # kasus di data/kasus_forensik, model di data/model
+
+perangkat:
+  inferensi: auto               # auto = GPU (CUDA) kalau tersedia | gpu = wajib GPU | cpu
+  encoder_video: libx264        # libx264 (CPU, default) | h264_nvenc (GPU NVIDIA, lebih cepat)
+                                # Jangan diganti di tengah pengumpulan data: semua klip sebaiknya
+                                # memakai encoder yang sama supaya artefak kompresinya seragam.
+
+ekstraksi:                      # Detektor wajah MTCNN. Margin dan ukuran crop diambil otomatis dari profil
+                                # data latih yang tercatat di setiap model; nilai di sini cadangan.
+  folder: wajah_mtcnn_m16_299   # nama profil data wajah saat model dilatih
+  frame_per_video: 20
+  mode_frame: berurutan         # 20 frame berurutan di tengah klip (gerak bibir terbaca); merata = aturan lama
+  fps_sampel: 25
+  ukuran: 299                   # crop wajah di-resize 299x299 (ukuran asli Xception)
+  margin: 1.6                   # perbesaran kotak wajah sebelum di-crop (ikut tepi wajah, rambut, leher)
+  ukuran_wajah_min: 50          # wajah lebih kecil dari ini (piksel) diabaikan
+  prob_min: 0.95                # keyakinan MTCNN minimal
+  ambang_mtcnn: [0.6, 0.7, 0.7] # ambang P-Net, R-Net, O-Net
+  batch_frame: 10               # frame per batch ke GPU
+  format: png                   # png = tanpa kompresi tambahan
+  maks_porsi_hitam: 0.3         # wajah yang >30% crop-nya hitam murni (tepi frame) dilewati
+  ambang_identitas_berubah: 0.6 # di video fake: kemiripan ArcFace wajah vs video aslinya di bawah
+                                # nilai ini = wajah dimanipulasi, di atasnya = wajah asli
+
+forensik:                       # Aplikasi forensik (FORENSIK.bat / aplikasi_forensik.py)
+  durasi_segmen_detik: 10       # = durasi klip dataset; video dibagi per 10 detik
+  frame_per_segmen: 20          # = frame per video saat ekstraksi/training
+  maks_segmen: 120              # video lebih panjang disampel merata menjadi sekian segmen
+  maks_orang: 3                 # orang (wajah terbesar) yang dianalisis per segmen
+  iou_lacak: 0.3                # pelacakan wajah antarframe
+  ambang_identitas: 0.45        # ArcFace: wajah antarsegmen dianggap orang yang sama
+  zona_ragu: 0.1                # hanya dipakai bila ambang_rendah: tidak (skema satu ambang)
+  gradcam_cakupan: lewat_ambang # lewat_ambang (semua segmen >= ambang + tertinggi tiap orang) | tertinggi | semua
+  gradcam_maks: 60              # batas gambar Grad-CAM per barang bukti
+  pisah_jejak: true             # potong urutan wajah bila adegan berganti / orangnya berganti di dalam satu segmen
+  ambang_ganti_adegan: 0.5      # korelasi histogram HSV antarframe di bawah ini = pergantian adegan
+  ambang_ganti_orang: 0.35      # kemiripan ArcFace terhadap bagian sebelumnya di bawah ini = orang lain
+  ambang: fpr5                  # batas toleransi 5%: skor rata-rata >= ini -> Terindikasi deepfake
+  ambang_rendah: val            # ambang Youden: Youden s.d. di bawah batas toleransi -> Perlu pemeriksaan lanjutan
