@@ -32,6 +32,7 @@ Jejak Rupa ("traces of the face") is the forensic application built for a master
 - **Interactive timeline and Grad-CAM.** The video player, the score timeline, and the Grad-CAM frames are synchronized. Every Grad-CAM frame shows its exact time in the video and its relative weight.
 - **Known error rate.** Decision thresholds come from the validation data, and the report states them with their error rates.
 - **Forensic report.** A self-contained HTML and PDF report with findings and a written explanation of every decision.
+- **Two languages.** The interface, logs, and reports are available in Indonesian and English (ID / EN switch at the top right).
 
 ### Forensic workflow
 
@@ -113,6 +114,7 @@ python aplikasi_forensik.py
 aplikasi_forensik.py    local server, desktop window (pywebview), job queue, API
 forensik_video.py       acquisition, integrity, segmentation, face tracking, scoring, Grad-CAM
 laporan_forensik.py     HTML and PDF report
+bahasa.py               Indonesian / English text for the interface, logs, and reports
 forensik.py             SHA-256 hash-chained log and its verification
 common.py               shared helpers (config, ffmpeg, InsightFace)
 05_ekstrak_wajah.py     MTCNN, face crop, frame sampling rules
@@ -154,6 +156,7 @@ Jejak Rupa adalah aplikasi forensik yang dibangun untuk tesis magister tentang b
 - **Garis waktu interaktif dan Grad-CAM.** Pemutar video, garis waktu skor, dan frame Grad-CAM saling tersinkron. Setiap frame Grad-CAM menampilkan waktunya di video dan bobot relatifnya.
 - **Tingkat kesalahan yang diketahui.** Ambang keputusan diambil dari data validasi, dan laporan mencantumkannya beserta tingkat kesalahannya.
 - **Laporan forensik.** Laporan HTML mandiri dan PDF, berisi temuan dan penjelasan tertulis untuk setiap keputusan.
+- **Dua bahasa.** Tampilan, log, dan laporan tersedia dalam bahasa Indonesia dan Inggris (tombol ID / EN di kanan atas).
 
 ### Alur forensik
 
