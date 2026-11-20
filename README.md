@@ -86,14 +86,16 @@ The 5% tolerance limit is the lowest score exceeded by at most 5% of real videos
 - **Manipulation methods (FaceFusion 3.9.1):** face swap with hyperswap_1a_256, inswapper_128, simswap_256, and ghost_2_256; lip-sync with wav2lip_96 and wav2lip_gan_96.
 - **Celeb-DF v2:** official test list.
 
-The dataset and the trained weights are not part of this repository.
+The dataset is not part of this repository. The trained weights are available on request (see [Getting started](#getting-started)).
 
 ### Getting started
 
 Requirements: Windows 10/11 with WebView2, Python 3.10 to 3.12, an NVIDIA GPU (recommended; CPU works but is slow), and Microsoft Edge or Google Chrome for PDF reports.
 
 1. Clone this repository.
-2. Put a trained model in `data/model/<model_name>/` with `terbaik.pt` (weights) and `metrik.json` (training settings, crop profile, thresholds).
+2. Get the model. The trained model `B_20261111_0035` (92 MB) is shared on request through [Google Drive](https://drive.google.com/file/d/10j1b2Azf52SXMUFS8nqNHxlolPp4_sk7/view?usp=drive_link). Open the link, click **Request access**, and write your name, institution, and intended use in the message. Once access is granted, download `Jejak_rupa_model_B_20261111_0035.zip` and extract it in the repository folder, so the files end up in `data/model/B_20261111_0035/` (`terbaik.pt` for the weights, `metrik.json` for training settings, crop profile, and thresholds).
+   SHA-256 of the zip: `67e94650ca1d6429b096b95481426d1c99368abf0947ba94e2037d5fc3198653`
+   You can also use your own model trained with the dataset pipeline by putting it in `data/model/<model_name>/` with the same two files.
 3. Double-click `FORENSIK.bat`. On the first run it creates `.venv` and installs all dependencies, including PyTorch with CUDA when an NVIDIA GPU is present.
 
 Manual setup:
@@ -210,14 +212,16 @@ Batas toleransi 5% adalah skor terendah yang dilewati paling banyak 5% video asl
 - **Metode manipulasi (FaceFusion 3.9.1):** face swap dengan hyperswap_1a_256, inswapper_128, simswap_256, dan ghost_2_256; lip-sync dengan wav2lip_96 dan wav2lip_gan_96.
 - **Celeb-DF v2:** daftar uji resmi.
 
-Dataset dan bobot model tidak disertakan di repositori ini.
+Dataset tidak disertakan di repositori ini. Bobot model tersedia atas permintaan (lihat [Memulai](#memulai)).
 
 ### Memulai
 
 Kebutuhan: Windows 10/11 dengan WebView2, Python 3.10 sampai 3.12, GPU NVIDIA (dianjurkan; CPU bisa tetapi lambat), serta Microsoft Edge atau Google Chrome untuk laporan PDF.
 
 1. Clone repositori ini.
-2. Taruh model hasil training di `data/model/<nama_model>/` berisi `terbaik.pt` (bobot) dan `metrik.json` (pengaturan training, profil crop, ambang).
+2. Ambil model. Model `B_20261111_0035` (92 MB) dibagikan atas permintaan lewat [Google Drive](https://drive.google.com/file/d/10j1b2Azf52SXMUFS8nqNHxlolPp4_sk7/view?usp=drive_link). Buka link tersebut, klik **Minta akses**, lalu tulis nama, instansi, dan tujuan penggunaan di pesan permintaan. Setelah akses disetujui, unduh `Jejak_rupa_model_B_20261111_0035.zip` dan ekstrak di folder repositori sehingga file berada di `data/model/B_20261111_0035/` (`terbaik.pt` berisi bobot, `metrik.json` berisi pengaturan training, profil crop, dan ambang).
+   SHA-256 zip: `67e94650ca1d6429b096b95481426d1c99368abf0947ba94e2037d5fc3198653`
+   Model sendiri hasil pipeline dataset juga bisa dipakai dengan menaruhnya di `data/model/<nama_model>/` berisi dua file yang sama.
 3. Klik dua kali `FORENSIK.bat`. Saat pertama dijalankan, file ini membuat `.venv` dan memasang semua dependensi, termasuk PyTorch CUDA bila ada GPU NVIDIA.
 
 Pemasangan manual ada di bagian [Getting started](#getting-started).
